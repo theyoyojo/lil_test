@@ -1677,6 +1677,17 @@ end_justifies:
          * Make and then justify a percentage, with decreasing precision. */
 static const char *scale_pcnt (float num, int width, int justr) {
    static char buf[SMLBUFSIZ];
+   // Line numbers for debug output 
+   static int db_linenumber = 0 ;
+   FILE * db_output = fopen("db_output","a+") ;
+   fprintf(db_output,
+      "%d. Inputs: num=%g, width=%d, justr=%d\n",
+      db_linenumber,
+      num,
+      width,
+      justr
+   ) ;
+
 
    buf[0] = '\0';
    if (Rc.zero_suppress && 0 >= num)
@@ -1695,6 +1706,12 @@ static const char *scale_pcnt (float num, int width, int justr) {
    // well shoot, this outta' fit...
    snprintf(buf, sizeof(buf), "?");
 end_justifies:
+   ++db_linenumber ;
+   fprintf(db_output,
+      "\tbuf contents: %s\n",
+      buf
+   ) ;
+   fclose(db_output) ;
    return justify_pad(buf, width, justr);
 } // end: scale_pcnt
 

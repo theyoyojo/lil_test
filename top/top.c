@@ -62,6 +62,10 @@
 #include "top_nls.h"
 
 
+// CUSTOM INCLUDES by Joel Savitz
+#include "../lil_db/lil_db.h"
+// END CUSTOM INCLUDES
+
 /*######  Miscellaneous global stuff  ####################################*/
 
         /* The original and new terminal definitions
@@ -1676,17 +1680,17 @@ end_justifies:
         /*
          * Make and then justify a percentage, with decreasing precision. */
 static const char *scale_pcnt (float num, int width, int justr) {
+
    static char buf[SMLBUFSIZ];
-   // Line numbers for debug output 
-   static int db_linenumber = 0 ;
-   FILE * db_output = fopen("db_output","a+") ;
-   fprintf(db_output,
-      "%d. Inputs: num=%g, width=%d, justr=%d\n",
-      db_linenumber,
+
+   // CUSTOM SECTION by Joel Savitz
+   lil_db_printf_entry(
+      "Inputs: num=%g, width=%d, justr=%d\n",
       num,
       width,
       justr
    ) ;
+   // END CUSTOM SECTION
 
 
    buf[0] = '\0';
@@ -1706,12 +1710,9 @@ static const char *scale_pcnt (float num, int width, int justr) {
    // well shoot, this outta' fit...
    snprintf(buf, sizeof(buf), "?");
 end_justifies:
-   ++db_linenumber ;
-   fprintf(db_output,
-      "\tbuf contents: %s\n",
-      buf
-   ) ;
-   fclose(db_output) ;
+   // CUSTOM SECTION by Joel Savitz
+   //lil_db_printf( "\tbuf contents: %s\n", buf) ;
+   // END CUSTOM SECTION
    return justify_pad(buf, width, justr);
 } // end: scale_pcnt
 
@@ -6504,6 +6505,11 @@ int main (int dont_care_argc, char **argv) {
    whack_terminal();                    //                 > onions etc. <
    wins_stage_2();                      //                 as bottom slice
                                         //                 +-------------+
+
+   // Custom debug information output to a file named by the argument
+   char filename[] = "db_output" ;
+   lil_db_init(filename,sizeof(filename)) ;
+   // END CUSTOM SECTION
 
    for (;;) {
       struct timespec ts;

@@ -1,45 +1,21 @@
 #include "lil_db.h"
-
 #include <string.h>
-
-/* FYI (from lil_db.h)
-typedef struct lil_db_data {
-	// Name of output file, can be long if that's what you're in the mood for
-	char output_filename[LIL_DB_DEFAULT_BUFFSZ+1] ; // +1 for \0
-	
-	// Buffer for data to be written to output file
-	char buff[LIL_DB_DEFAULT_BUFFSZ+1] ; // +1 for \0
-
-	// The filestream to write output to
-	FILE * output_filestream ;
-
-	// Entry number in output file
-	unsigned int entry_number ; 
-	
-	// Should the next flush of the buffer be prefixed by the entry number?
-	int new_entry:1 ;
-	
-	// The number characters are currently in the buffer	
-	int buff_length:9 ; 	// Don't think I'll need all 9 bits
-			    	//but I have plenty to spare
-	
-	// Empty field that will be padded anyway, can be used later
-	int empty:21 ;	   	
-
-	// This should be nonzero only if we
-	// have a problem with our normal operations
-	int is_valid:1 ;
-} lil_db_data ;
-} lil_db_data ;
-*/
 
 // The data object for this library. Sorta private-ish
 static lil_db_data db_data ;
 
 /* RETURN MACROS woo what fun */
 
+typedef enum lil_db_return_code {
+	SUCCESS = 0,
+	FILE_OPEN_ERROR,
+	BUFFER_WRITE_FAILED,
+	FILE_WRITE_ERROR
+} lil_db_return_code ;
+
 // Generic success case. Nothing extra to be done
-#define LIL_DB_RETURN_SUCCESS 0
+#define LIL_DB_RETURN_SUCCESS SUCCESS
+#define LIL_DB_RETURN_SUCCESS_DATA(data) data
 
 // Error case: Cannot open output file for writing/appending
 // lil_db is not valid after a function returns this code
@@ -48,12 +24,7 @@ static lil_db_data db_data ;
 		fprintf(stderr, 					       \
 		"fopen(%s,\"a+\") failed!"				       \
 		"lil_db is now in an error state.\n",   		       \
-		filename), 1	// Real value returned is 1
-
-// Error case: Cannot write all bytes to buffer, return number of bytes written
-// lil_db is STILL VALID after this because it is designed to recover from this
-#define LIL_DB_RETURN_BUFFER_OVERFLOW_AVOIDED(number_chars_not_printed)        \
-	number_chars_not_printed
+		filename), FILE_OPEN_ERROR
 
 // Error case: Cannot write any bytes to buffer, return nonzero value
 // lil_db is not valid after a function returns this code
@@ -62,7 +33,7 @@ static lil_db_data db_data ;
 		fprintf(stderr,						       \
 		"Unable to write any bytes to buffer! "			       \
 		"lil_db is now in an error state\n"			       \
-		), 2	// Real value returned is 2
+		), BUFFER_WRITE_FAILED
 
 // Error case: Cannot write buffer to output file. Return nonzero value
 // lil_db is not valid after a function returns this code
@@ -71,7 +42,9 @@ static lil_db_data db_data ;
 		fprintf(stderr,						       \
 		"Unable to write buffer to file \"%s\"! "		       \
 		"lil_db is now in an error state\n",			       \
-		filename), 3	// Real value returned is 3
+		filename), FILE_WRITE_ERROR
+
+/* LIBRARY FUNCTIONS */
 
 // Initialize buffer and output filestream
 int lil_db_init(char * filename, size_t string_length)
@@ -104,9 +77,6 @@ int lil_db_init(char * filename, size_t string_length)
 	// Begin counting entries in the file at 0
 	db_data.entry_number = 0 ;
 
-	// The first entry is a new entry, so prefix it
-	db_data.new_entry = 1 ;
-
 	// There is nothing in the buffer, so it is 0 characters long
 	db_data.buff_length = 0 ;
 	
@@ -121,55 +91,8 @@ int lil_db_init(char * filename, size_t string_length)
 
 }
 
-// Write data to buffer using printf-like syntax
-int lil_db_enqueue(char * format, ...) {
-	va_list va_args ;
-	size_t remaining_buff_space ;
-	int complete_string_length ;
-
-	va_start(va_args, format) ;
-	
-	// How much space is left in the buffer? (+1 for \0)
-	remaining_buff_space = LIL_DB_DEFAULT_BUFFSZ + 1 - db_data.buff_length ;
-	
-	// We can't write any more than that number of bytes
-	complete_string_length =
-		vsnprintf(db_data.buff, remaining_buff_space, format, va_args) ;
-
-	va_end(va_args) ;
-
-	// Case: vsnprintf failed. Something is wrong with the object
-	if (complete_string_length < 0) {
-		return LIL_DB_RETURN_BUFFER_WRITE_FAILED ;
-	}
-	else
-	// Case: Not enough space in the buffer, printing was truncated
-	if (complete_string_length >= (int)remaining_buff_space) {
-		// Return the number of characters not copied but don't
-		// return a complete success
-		return LIL_DB_RETURN_BUFFER_OVERFLOW_AVOIDED(
-			complete_string_length - (remaining_buff_space - 1)) ;
-			// -1 for \0 that should not be accounted for
-	}
-	else
-	// Case: The string was successfully vsnprintf'd to the buffer
-	{
-		return LIL_DB_RETURN_SUCCESS ;
-	}
-}
-
 // Append contents of buffer to file, clear buffer (fill with 0s)
-int lil_db_flush_buffer(void) {
-	
-	// Case: This is a new entry
-	if (db_data.new_entry) {
-		fprintf(db_data.output_filestream,
-				"\n[%d]. ",		// Write entry number
-				db_data.entry_number++  // And incremement
-		       ) ;
-		// Don't do this again unless the user requests it
-		db_data.new_entry = 0 ;
-	}
+int lil_db_flush_buffer(int number_chars_not_copied) {
 	
 	// Write contents of buffer to output file
 	if (fprintf(db_data.output_filestream, "%s", db_data.buff ) < 0 ) {
@@ -179,63 +102,76 @@ int lil_db_flush_buffer(void) {
 
 	// Wipe buffer
 	memset(db_data.buff,0,LIL_DB_DEFAULT_BUFFSZ) ;
-	// It now contains 0 characters
+	// It now contains 0 characters :)
 	db_data.buff_length = 0 ;
 
-	return LIL_DB_RETURN_SUCCESS ;
-}
-
-// Perform the actions of lil_db_enqueue and subsequently lil_db_flush
-int lil_db_printf(char * format, ...) {
-	int number_chars_not_printed ;
-	va_list va_args ;
-
-	// Wrapper for lil_db_enqueue()
-	va_start(va_args, format) ;
-
-	vfprintf(db_data.output_filestream,format,va_args) ;
-
-	if ( (number_chars_not_printed = lil_db_enqueue(format, va_args)) ) {
-		// Case: Not all characters were copied to buffer
-		// TODO: print the rest
-		// but honestly it's not essential as things stand
-		// How do I start from where I left off?
-		// I'll just pass on the return value for now
-		return LIL_DB_RETURN_BUFFER_OVERFLOW_AVOIDED(
-				number_chars_not_printed) ;
-	}
-
-	va_end(va_args) ;
-
-	// Don't forget to flush
-	lil_db_flush_buffer() ;
-
-	return LIL_DB_RETURN_SUCCESS ;
-}
-
-// Ensure that the next write to the output file is prefixed by
-// the current entry number + 1
-int lil_db_new_entry(void) {
-	db_data.new_entry = 1 ;
-	return LIL_DB_RETURN_SUCCESS ;
+	return LIL_DB_RETURN_SUCCESS_DATA(number_chars_not_copied) ;
 }
 
 // Perform the actions of lil_db_enqueue and subsequently lil_db_flush,
 // but as a new entry
-int lil_db_printf_entry(char * format, ...) {
-	int number_chars_not_printed ;
+int lil_db_printf(lil_db_option options, char * format, ...) {
+	int number_chars_copied, number_chars_not_copied,
+	    complete_string_length, available_buffer_space ;
 	va_list va_args ;
 
-	lil_db_new_entry() ;
-	
-	// Wrapper for lil_db_printf()
-	va_start(va_args,format) ;
-	if ( (number_chars_not_printed = lil_db_printf(format, va_args)) ) {
-		return LIL_DB_RETURN_BUFFER_OVERFLOW_AVOIDED(
-			number_chars_not_printed) ;
-		// FIXME: This is not a good way to handle this afaik
-	}
-	va_end(va_args) ;
 
-	return LIL_DB_RETURN_SUCCESS ;
+	// Case: The user requests __EMPHASIS__
+	if (options & LIL_DB_OPTION_EMPHASIS) {
+		// If the user wants some emphasis, throw in some bangs or something idk
+		db_data.buff_length += snprintf(
+			db_data.buff,			// Write to primary buffer
+			LIL_DB_DEFAULT_BUFFSZ+1,	// Don't overflow
+			"%s",				// Just a string
+			LIL_DB_EMPHASIS_STYLE		// Find this in the .h
+		) ;
+	}
+
+
+	available_buffer_space = LIL_DB_DEFAULT_BUFFSZ + 1 - db_data.buff_length ;
+
+	// Case: The user requests an enumerated prefix
+	if  (options & LIL_DB_OPTION_NUMBERED) {
+		// Give the people what they desire
+		db_data.buff_length += snprintf(
+			db_data.buff			// Write to primary buffer
+				+ db_data.buff_length,  // Offset by length
+			available_buffer_space,		// Don't overflow
+			"[%d]. ",			// A formatted int
+			db_data.entry_number++		// From internal data
+		) ;
+	}
+
+	// Recalculate this value, as buff_length has changed
+	available_buffer_space = LIL_DB_DEFAULT_BUFFSZ + 1 - db_data.buff_length ;
+
+	va_start(va_args,format) ;
+
+	// TODO: force newline?
+
+	complete_string_length =		// We save the potential length
+		vsnprintf(			// Using the save version
+			db_data.buff			// Write to primary buffer
+				+ db_data.buff_length,  // Offset by length
+			available_buffer_space,		// Don't overflow
+			format,				// with this fmt string
+			va_args				// and the corresponding args
+		) ;
+
+	va_end(va_args) ;
+	
+	// Case: vsnprintf failed. Something is wrong with the object
+	if (complete_string_length < 0) {
+		return LIL_DB_RETURN_BUFFER_WRITE_FAILED ;
+	}
+
+	number_chars_copied = complete_string_length - (available_buffer_space - 1) ;
+	// -1 to correct for '\0' taken into account by vsnprintf
+	
+	// Complement the above
+	number_chars_not_copied = complete_string_length - number_chars_copied ;
+
+	// Append buffer to file, clear it, and return result of that operation
+	// Report on leftover uncopied chars
+	return lil_db_flush_buffer(number_chars_not_copied) ;
 }

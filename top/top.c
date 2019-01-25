@@ -1684,7 +1684,7 @@ static const char *scale_pcnt (float num, int width, int justr) {
    static char buf[SMLBUFSIZ];
 
    // CUSTOM SECTION by Joel Savitz
-   lil_db_printf_entry(
+   lil_db_printf( LIL_DB_OPTION_NUMBERED | LIL_DB_OPTION_EMPHASIS,
       "Inputs: num=%g, width=%d, justr=%d\n",
       num,
       width,
@@ -1711,7 +1711,7 @@ static const char *scale_pcnt (float num, int width, int justr) {
    snprintf(buf, sizeof(buf), "?");
 end_justifies:
    // CUSTOM SECTION by Joel Savitz
-   //lil_db_printf( "\tbuf contents: %s\n", buf) ;
+   lil_db_printf(0, "\tbuf contents: %s\n", buf) ;
    // END CUSTOM SECTION
    return justify_pad(buf, width, justr);
 } // end: scale_pcnt
@@ -2752,6 +2752,9 @@ static void procs_hlp (proc_t *this) {
    hstput(Frame_maxtask);
    // find matching entry from previous frame and make stuff elapsed
    if ((h = hstget(this->tid))) {
+      lil_db_printf(LIL_DB_OPTION_EMPHASIS, "calculating elapsed stuff?\n"
+		      "tics = %llu, h->tics = %llu",
+		      tics,h->tics) ;
       tics -= h->tics;
       this->maj_delta = this->maj_flt - h->maj;
       this->min_delta = this->min_flt - h->min;

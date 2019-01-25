@@ -12,6 +12,9 @@
 
 #define LIL_DB_DEFAULT_BUFFSZ 255
 
+// Used when the user wants to try a new aesthetic
+#define LIL_DB_EMPHASIS_STYLE "\n!!!\n"
+
 // Note to self: Keep it simple and don't dynamically allocate any memory
 
 // Library data format
@@ -28,9 +31,6 @@ typedef struct lil_db_data {
 	// Entry number in output file
 	unsigned int entry_number ; 
 	
-	// Should the next flush of the buffer be prefixed by the entry number?
-	int new_entry:1 ;
-
 	// The number characters are currently in the buffer	
 	int buff_length:9 ; // Don't think I'll need all 9 bits but I have plenty to spare
 	
@@ -40,6 +40,12 @@ typedef struct lil_db_data {
 	// This should be nzero only if we have a problem with our normal operations
 	int is_valid:1 ;
 } lil_db_data ;
+
+typedef enum lil_db_option {
+	LIL_DB_OPTION_DEFAULT  = 0x0, 		// raw vsnprintfing
+	LIL_DB_OPTION_EMPHASIS = 0x1,		// enhanced vsnprintfing
+	LIL_DB_OPTION_NUMBERED = 0x2      	// slap a nice looking number in the front
+} lil_db_option ;
 
 // All functions return 0 on success and nonzero on failure unless otherwise specified
 // See implementation for details
@@ -51,16 +57,9 @@ int lil_db_init(char * filename, size_t string_length) ;
 int lil_db_enqueue(char * fmt, ...) ;
 
 // Append contents of buffer to file, clear buffer (fill with 0s)
-int lil_db_flush_buffer(void) ;
-
-// Perform the actions of lil_db_enqueue and subsequently lil_db_flush
-int lil_db_printf(char * fmt, ...) ;
-
-// Ensure that the next write to the output file is prefixed by the current entry number + 1
-int lil_db_new_entry(void) ;
+int lil_db_flush_buffer(int number_chars_not_copied) ;
 
 // Perform the actions of lil_db_enqueue and subsequently lil_db_flush, but as a new entry
-int lil_db_printf_entry(char * fmt, ...) ;
-
+int lil_db_printf(lil_db_option options, char * format, ...) ;
 
 #endif // LIL_DB_H

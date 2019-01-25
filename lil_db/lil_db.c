@@ -1,16 +1,23 @@
+/*
+ * lil_db.c source file
+ * A lil debugging library to save some keystrokes
+ * By Joel Savitz <jsavitz@redhat.com>
+ */
+
 #include "lil_db.h"
 #include <string.h>
 
 // The data object for this library. Sorta private-ish
-static lil_db_data db_data ;
+static lil_db_data_t db_data = {{ 0 }} ;
 
 /* RETURN MACROS woo what fun */
 
 typedef enum lil_db_return_code {
 	SUCCESS = 0,
 	FILE_OPEN_ERROR,
-	BUFFER_WRITE_FAILED,
-	FILE_WRITE_ERROR
+	BUFFER_WRITE_ERROR,
+	FILE_WRITE_ERROR,
+	INVALID_STATE_ERROR
 } lil_db_return_code ;
 
 // Generic success case. Nothing extra to be done
@@ -28,12 +35,12 @@ typedef enum lil_db_return_code {
 
 // Error case: Cannot write any bytes to buffer, return nonzero value
 // lil_db is not valid after a function returns this code
-#define LIL_DB_RETURN_BUFFER_WRITE_FAILED                                      \
+#define LIL_DB_RETURN_BUFFER_WRITE_ERROR				       \
 		(db_data.is_valid = 0),	                                       \
 		fprintf(stderr,						       \
 		"Unable to write any bytes to buffer! "			       \
 		"lil_db is now in an error state\n"			       \
-		), BUFFER_WRITE_FAILED
+		), BUFFER_WRITE_ERROR
 
 // Error case: Cannot write buffer to output file. Return nonzero value
 // lil_db is not valid after a function returns this code
@@ -43,6 +50,16 @@ typedef enum lil_db_return_code {
 		"Unable to write buffer to file \"%s\"! "		       \
 		"lil_db is now in an error state\n",			       \
 		filename), FILE_WRITE_ERROR
+
+// Error case: User calls library functions while it is in an error state
+// lil_db is (still) not valid after a function returns this code
+#define LIL_DB_RETURN_INVALID_STATE_ERROR(msg) 				       \
+		(db_data.is_valid = 0),					       \
+		fprintf(stderr,						       \
+		"lil_db is not in a usable state!\n"	 		       \
+		"Cannot continue with requested operation: %s\n",	       \
+		msg), INVALID_STATE_ERROR
+
 
 /* LIBRARY FUNCTIONS */
 
@@ -92,7 +109,11 @@ int lil_db_init(char * filename, size_t string_length)
 }
 
 // Append contents of buffer to file, clear buffer (fill with 0s)
-int lil_db_flush_buffer(int number_chars_not_copied) {
+int lil_db_flush_buffer(int number_chars_not_copied)
+{
+	// Check validity of library state
+	if(!db_data.is_valid) return LIL_DB_RETURN_INVALID_STATE_ERROR
+		(__FUNCTION__) ;
 	
 	// Write contents of buffer to output file
 	if (fprintf(db_data.output_filestream, "%s", db_data.buff ) < 0 ) {
@@ -110,7 +131,12 @@ int lil_db_flush_buffer(int number_chars_not_copied) {
 
 // Perform the actions of lil_db_enqueue and subsequently lil_db_flush,
 // but as a new entry
-int lil_db_printf(lil_db_option options, char * format, ...) {
+int lil_db_printf(lil_db_option options, char * format, ...)
+{
+	// Check validity of library state
+	if(!db_data.is_valid) return LIL_DB_RETURN_INVALID_STATE_ERROR
+		(__FUNCTION__) ;
+
 	int number_chars_copied, number_chars_not_copied,
 	    complete_string_length, available_buffer_space ;
 	va_list va_args ;
@@ -162,7 +188,7 @@ int lil_db_printf(lil_db_option options, char * format, ...) {
 	
 	// Case: vsnprintf failed. Something is wrong with the object
 	if (complete_string_length < 0) {
-		return LIL_DB_RETURN_BUFFER_WRITE_FAILED ;
+		return LIL_DB_RETURN_BUFFER_WRITE_ERROR ;
 	}
 
 	number_chars_copied = complete_string_length - (available_buffer_space - 1) ;
@@ -174,4 +200,25 @@ int lil_db_printf(lil_db_option options, char * format, ...) {
 	// Append buffer to file, clear it, and return result of that operation
 	// Report on leftover uncopied chars
 	return lil_db_flush_buffer(number_chars_not_copied) ;
+}
+
+int lil_db_kill(void)
+{
+	// Check validity of library state
+	if(!db_data.is_valid) return LIL_DB_RETURN_INVALID_STATE_ERROR
+		("You cannot kill what is already dead") ;
+
+	// This is really all I need to clean up
+	fclose(db_data.output_filestream) ; 
+	
+	// Without an active output filestream, the library is in an invalid state
+	db_data.is_valid = 0 ;
+	
+	return LIL_DB_RETURN_SUCCESS ;
+}
+
+int lil_db_is_not_valid(void)
+{
+	// Extremely straightforward function
+	return db_data.is_valid ;
 }

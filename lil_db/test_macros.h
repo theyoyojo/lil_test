@@ -15,6 +15,7 @@
 // Yeah you're going to need GNU C if you want any of this to make sense 
 #ifndef __GNUC__
 #error "__GNUC__ not defined"
+#else
 
 #define TEST_OPTION_VERBOSE 		 /* Show all passes */
 #undef TEST_OPTION_SUPPRESS_FAILURE	 /* Show all fails  */
@@ -125,7 +126,7 @@
 
  /*
   * Identifier:
-  * 		TEST_CASE_FAIL()
+  * 		TEST_CASE_FAIL(why_string)
   *
   * Purpose:
   *		Fail a test case. Report to user unless the option is set.
@@ -134,7 +135,7 @@
   *          why_string : an optional message to display to the standard error
   *         		 +stream
   *
-  * Resolution.
+  * Resolution:
   * 		Print a message to the user unless the SUPPRESS_FAILURE option
   * 	       +is set.
   *
@@ -200,8 +201,8 @@
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_FAIL_IF_TRUE(predicate) 						       \
-	if((predicate))						      \
+#define TEST_FAIL_IF_TRUE(predicate)				               \
+	if((predicate))						               \
 	{ TEST_CASE_FAIL("TRUE: \"" TO_STRING(predicate) "\"") }
 
  /*

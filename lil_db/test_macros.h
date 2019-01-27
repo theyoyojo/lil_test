@@ -1,3 +1,5 @@
+/* SECTION: GENERAL INFORMATION */
+
 /*
  * lil_db_test_suite
  * By Joel Savitz <jsavitz@redhat.com>
@@ -5,21 +7,46 @@
  * Purpose: Extremely lightweight unit testing
  *
  */
+
+
 #ifndef TEST_MACROS_H
 #define TEST_MACROS_H
 
-#include <stdlib.h> // Literally just for exit()
+#include <stdlib.h> // Literally just for exit(), NULL
 
-/* UTILITY MACROS */
+/* Specification of documentation information */
+
+ /*
+  * Identifier:
+  * 		DEFINED_IDENFIFIER(comma, seperated, params)
+  * Purpose:
+  *	
+  * Inputs:
+  * 		  comma : An explanation
+  *
+  * 	      saperated : Of each
+  *
+  * 	         params	: Paraaeter
+  *
+  * Resolution:
+  *		A description of the code generated after the macro
+  *	       +is handled by the preprocessor
+  *
+  * Requirements:
+  * 		Any prerequisites to the processing of this macro, if any.
+  * 		This section may be excluded if it would otherwise be empty
+  */ 
+
+/* SECTION: UTILITY MACROS */
 
  /* 
-  * ID:
+  * Identifier:
   * 		TO_STRING(x)
   * Purpose:
   * 		Wrapper for # operator to improve readability
   *
   * Inputs:
-  * 		x: An arbitrary token
+  *	  	      x	: An arbitrary token
   *
   * Resolution:
   * 		A usable character string object contianing the text
@@ -29,15 +56,15 @@
 #define TO_STRING(identifier) #identifier
 
  /* 
-  * ID:
+  * Identifier:
   * 		LAMBDA(return_t, ...)
   * Purpose:
   * 		Simple implementation of anonymous function objects
   *
   * Inputs:
-  * 		return_t: a valid function return type
+  * 	       return_t	: a valid function return type
   *
-  * 		...	: The function body, which follows the syntax of
+  *    __VA_ARGS_ / ...	: The function body, which follows the syntax of
   * 			 +any arbitrary function definition, begining with
   * 			 +the tokens that immediately follow the function
   * 			 +identifier.
@@ -55,47 +82,99 @@
 #define LAMBDA(return_t,...)						       \
 	__extension__	 		/* turn off GCC's pedantry 	    */ \
 	({				/* begin block expression  	    */ \
-	 return_t function_identifier   /* declare function id return type  */ \
+	 return_t function_identifier   /* declare function id & return type*/ \
 	 __VA_ARGS__			/* insert param list, function body */ \
 	 function_identifier ;		/* expression evals to function ptr */ \
-	 })				/* close block, eval to callable fn */	
+	 })				/* close block, eval to func object */	
 
-/* PREDICATE PROCESSING MACROS */
+/* SECTION: ASSERTIONS */
 
-#define TEST_FAILURE 0 		/* Returned by failing assertion */
-#define TEST_SUCCESS 1		/* Returned at end of test case control flow */
+#define TEST_RETURN_FAIL 0 		/* Returned by failing assertion */
+#define TEST_RETURN_PASS 1		/* Returned at end of test case control flow */
 
-#ifdef ASSERT			
-#undef ASSERT			/* Ensure usage of our custom assertion */
-#endif
+// TODO: Next level of abstraction
+#define TEST_ASSERTION_TEMPLATE(action, boolean, predicate) NULL
+
+#define TEST_CASE_PASS()
+
+#define TEST_CASE_FAIL()
 
  /*
-  * ID:
-  *		ASSERT(predicate)
+  * Identifier:
+  *		TEST_FAIL_IF_FALSE(predicate)
   * Purpose:
   * 		Process an individual comparisson in a test case
   *
   * Inputs:
-  * 		prediate: An arbitrary boolean logical predicate
+  *    	      predicate	: An arbitrary boolean logical predicate
   *
-  * Resoltion:
-  * 		
+  * Resolution:
+  * 		A contitional statement that tests the predicate, followed by
+  * 	       +a block of code conditionally executed in the event of a
+  * 	       +predicate wth a value of false. The block terminates with a
+  * 	       +return of TEST_FAILIURE
+  *
+  * Requirements:
+  * 		Must be run within the scope of a test case
   */			
-#define ASSERT(predicate) \
-	if(!(predicate)) { \
-	fprintf(stderr, "In test case: %s\n"\
-		"Assertion: \"%s\" failed!\n",\
-			test_name,\
-			TO_STRING(predicate)) ;\
-	return TEST_FAILURE ; }
+#define TEST_FAIL_IF_FALSE(predicate) 						       \
+	if(!(predicate)) { 		/* Branch on false predicate    	    */ \
+	fprintf(stderr,		        /* Begin an error message	      	    */ \
+		"Failure in test case %s:\n"                                           \
+		"\tFALSE: \"%s\"\n",                                                   \
+		test_name,      	/* Print the auto-declared test name string */ \
+		TO_STRING(predicate)) ; /* Print predicate of failing assert        */ \
+	return TEST_RETURN_FAIL ; } 	/* The test case has now failed             */ \
 
-/* CORE FUNCTIONALITY MACROS*/
+#define TEST_FAIL_IF_TRUE(predicate) 						       \
+	if((predicate)) { 		/* Branch on true predicate       	    */ \
+	fprintf(stderr,		        /* Begin an error message	      	    */ \
+		"Failure in test case %s:\n"                                           \
+		"\tTRUE: \"%s\"\n",                                                    \
+		test_name,      	/* Print the auto-declared test name string */ \
+		TO_STRING(predicate)) ; /* Print predicate of failing assertion     */ \
+	return TEST_RETURN_FAIL ; } 	/* The test case has now failed             */ \
 
+#define TEST_PASS_IF_FALSE(predicate) \
+	if(!(predicate)) { 		/* Branch on false predicate    	    */ \
+	fprintf(stdout,		        /* Begin an informational message      	    */ \
+		"PASS: %s:\n" 							       \
+		test_name,      	/* Print the auto-declared test name string */ \
+	return TEST_RETURN_PASS  ; } 	/* The test case has now passed 	    */ \
+
+#define TEST_PASS_IF_TRUE(predicate) \
+	if((predicate)) { 		/* Branch on true predicate       	    */ \
+	fprintf(stdout,		        /* Begin an informational message      	    */ \
+		"PASS: %s:\n" 							       \
+		test_name,      	/* Print the auto-declared test name string */ \
+	return TEST_RETURN_PASS  ; } 	/* The test case has now passed 	    */ \
+
+#define ASSERT(predicate) TEST_FAIL_IF_FALSE(predicate)
+
+/* SECTION: CORE FUNCTIONALITY MACROS */
+
+ /*
+  * Identifier:
+  * 		TEST_CHECK_SPACE(comma, seperated, params)
+  * Purpose:
+  *	
+  * Inputs:
+  * 		  comma : An explanation
+  *
+  * 	      separated : Of each
+  *
+  * 	         params	: Parameter
+  *
+  * Resolution:
+  *		A description of the code generated after the macro
+  *	       +is handled by the preprocessor
+  */ 
 #define TEST_CHECK_SPACE() \
 	if (test_count_total >= test_buffspace) {\
 	fprintf(stderr, \
 		"Number of test cases cannot excceed value allocated" \
-		" by TEST_INIT() (i.e. %d). Killing self...\n", test_buffspace) ;\
+		" by TEST_INIT() (i.e. %d). Killing self...\n", \
+		test_buffspace) ;\
 		exit(1);}
 
 #define TEST_CASE(name,...) TEST_CHECK_SPACE() ;\
@@ -104,7 +183,7 @@
 			char * test_name = TO_STRING(test_##name) ; \
 			(void)test_name ; \
 			__VA_ARGS__ \
-			return TEST_SUCCESS ; \
+			return TEST_RETURN_PASS ; \
 		})
 
 #define TEST_INIT(buffspace) int (*tests[buffspace])(void) ; \

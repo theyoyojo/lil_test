@@ -1,7 +1,7 @@
 /* SECTION: GENERAL INFORMATION */
 
 /*
- * lil_db_test_suite
+ * test_macros.h metasource file
  * By Joel Savitz <jsavitz@redhat.com>
  *
  * Purpose: Extremely lightweight unit testing
@@ -12,11 +12,12 @@
 #ifndef TEST_MACROS_H
 #define TEST_MACROS_H
 
-// Yeah you're going to need GNU C if you want any of this to make sense 
+/* GNU C is REQUIRED for usage of these macros */
 #ifndef __GNUC__
 #error "__GNUC__ not defined"
 #else
 
+/* Output display options */
 #define TEST_OPTION_VERBOSE 		 /* Show all passes */
 #undef TEST_OPTION_SUPPRESS_FAILURE	 /* Show all fails  */
 
@@ -243,7 +244,7 @@
   */			
 #define TEST_PASS_IF_TRUE(predicate) if((predicate TEST_CASE_PASS()
 
-// ASSERT is an alias for TEST_FAIL_IF FALSE
+// ASSERT is an alias for TEST_FAIL_IF FALSE (for now)
 #define ASSERT(predicate) TEST_FAIL_IF_FALSE(predicate)
 
 

@@ -53,13 +53,20 @@ int main(int argc, char * argv[]) {
 		) ;
 	) ;
 
+	TEST_CASE(new_fail_if_true,
+		TEST_FAIL_IF_TRUE(0) ;
+	) ;
+
+	TEST_CASE(will_fail_silently,TEST_CASE_FAIL("")) ;
+
+	TEST_CASE(new_pass_if_false,TEST_PASS_IF_FALSE(0)) ;
+
 	foo(LAMBDA(void, (void) {
 		printf("in lambda\n") ;
 		LAMBDA(void,(void) {
 			printf("NESTY BOI\n") ;
 		})() ;
 	})) ;
-
 
 	baz(LAMBDA(void, (void(*h)(void)) { (*h)(); })) ;
 

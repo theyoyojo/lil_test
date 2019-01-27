@@ -12,6 +12,13 @@
 #ifndef TEST_MACROS_H
 #define TEST_MACROS_H
 
+// Yeah you're going to need GNU C if you want any of this to make sense 
+#ifndef __GNUC__
+#error "__GNUC__ not defined"
+
+#define TEST_OPTION_VERBOSE 		 /* Show all passes */
+#undef TEST_OPTION_SUPPRESS_FAILURE	 /* Show all fails  */
+
 #include <stdlib.h>
 
 /* Specification of documentation information */
@@ -84,73 +91,160 @@
 	 return_t function_identifier   /* declare function id & return type*/ \
 	 __VA_ARGS__			/* insert param list, function body */ \
 	 function_identifier ;		/* expression evals to function ptr */ \
-	 })				/* close block, eval to func object */	
+	})				/* close block, eval to func object */	
 
 /* SECTION: ASSERTION MACROS */
 
-#define TEST_RETURN_FAIL 0 		/* Returned by passing test case    */
+#define TEST_RETURN_FAIL 0 		/* Returned by failing test case    */
 #define TEST_RETURN_PASS 1		/* Returned by passing test case    */
 
-// TODO: Next level of abstraction
-#define TEST_ASSERTION_TEMPLATE(action, boolean, predicate) NULL
+ /*
+  * Identifier:
+  * 		TEST_CASE_PASS()
+  *
+  * Purpose:
+  *		Pass a test case. Report to user if the option is set.
+  *
+  * Resolution:
+  *	        Print a message to the standard output stream if the
+  *	        VERBOSE option is set. Return the PASS code.
+  *
+  * Requirements:
+  * 		Must be run within the scope of a test case.
+  */ 
+#ifdef TEST_OPTION_VERBOSE
+#define TEST_CASE_PASS()						       \
+	fprintf(stdout,		        /* Begin an informational message   */ \
+		"PASS %s\n\n",	        /* Good news			    */ \
+		test_name) ;      	/* Print test case function name    */ \
+	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */
+#else
+#define TEST_CASE_PASS()						       \
+	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */
+#endif // ifdef TEST_OPTION_VERBOSE
+
+ /*
+  * Identifier:
+  * 		TEST_CASE_FAIL()
+  *
+  * Purpose:
+  *		Fail a test case. Report to user unless the option is set.
+  *		
+  * Inputs:
+  *          why_string : an optional message to display to the standard error
+  *         		 +stream
+  *
+  * Resolution.
+  * 		Print a message to the user unless the SUPPRESS_FAILURE option
+  * 	       +is set.
+  *
+  * Requirements:
+  * 		Must be run within the scope of a test case.
+  */
+#ifndef TEST_OPTION_SUPPRESS_FAILURE
+#define TEST_CASE_FAIL(why_string)					       \
+	fprintf(stderr,		        /* Begin an error message	    */ \
+		"FAIL %s:\n"            /* Bad news                         */ \
+		"\t%s\n",               /* Indented why_string              */ \
+		test_name,      	/* Print test case function name    */ \
+		why_string) ;  	        /* Print failure defailt            */ \
+	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */
+#else
+#define TEST_CASE_FAIL(why_string)					       \
+	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */
+#endif // ifndef TEST_OPTION_SUPPRESS_FAILURE
+
 
 // TODO
-#define TEST_CASE_PASS()
+//#define TEST_WARN_IF_TRUE()
+//#define TEST_WARN_IF_FALSE()
 
-// TODO
-#define TEST_CASE_FAIL()
+// TODO: Hell yeah
+//#define TEST_ALLOC_FREE(typename,copies)
 
  /*
   * Identifier:
   *		TEST_FAIL_IF_FALSE(predicate)
+  *
   * Purpose:
-  * 		Process an individual comparisson in a test case
+  * 		Fail a test case if a predicate is false
   *
   * Inputs:
   *    	      predicate	: An arbitrary boolean logical predicate
   *
   * Resolution:
-  * 		A contitional statement that tests the predicate, followed by
-  * 	       +a block of code conditionally executed in the event of a
-  * 	       +predicate wth a value of false. The block terminates with a
-  * 	       +return of TEST_FAILIURE
+  * 		A contitional statement that tests the predicate. If it is 
+  * 	       +false the test fails and the false predicate is reported
   *
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_FAIL_IF_FALSE(predicate) 						       \
-	if(!(predicate)) { 		/* Branch on false predicate    	    */ \
-	fprintf(stderr,		        /* Begin an error message	      	    */ \
-		"Failure in test case %s:\n"                                           \
-		"\tFALSE: \"%s\"\n",                                                   \
-		test_name,      	/* Print the auto-declared test name string */ \
-		TO_STRING(predicate)) ; /* Print predicate of failing assert        */ \
-	return TEST_RETURN_FAIL ; } 	/* The test case has now failed             */ \
+#define TEST_FAIL_IF_FALSE(predicate) 				              \
+	if(!(predicate))						      \
+	{ TEST_CASE_FAIL("FALSE: \"" TO_STRING(predicate) "\"") }
 
+ /*
+  * Identifier:
+  *		TEST_FAIL_IF_TRUE(predicate)
+  *
+  * Purpose:
+  * 		Fail a test case if a predicate is true
+  *
+  * Inputs:
+  *    	      predicate	: An arbitrary boolean logical predicate
+  *
+  * Resolution:
+  * 		A contitional statement that tests the predicate. If it is true
+  * 	       +the test fails and the true predicate is reported
+  *
+  * Requirements:
+  * 		Must be run within the scope of a test case
+  */			
 #define TEST_FAIL_IF_TRUE(predicate) 						       \
-	if((predicate)) { 		/* Branch on true predicate       	    */ \
-	fprintf(stderr,		        /* Begin an error message	      	    */ \
-		"Failure in test case %s:\n"                                           \
-		"\tTRUE: \"%s\"\n",                                                    \
-		test_name,      	/* Print the auto-declared test name string */ \
-		TO_STRING(predicate)) ; /* Print predicate of failing assertion     */ \
-	return TEST_RETURN_FAIL ; } 	/* The test case has now failed             */ \
+	if((predicate))						      \
+	{ TEST_CASE_FAIL("TRUE: \"" TO_STRING(predicate) "\"") }
 
-#define TEST_PASS_IF_FALSE(predicate) \
-	if(!(predicate)) { 		/* Branch on false predicate    	    */ \
-	fprintf(stdout,		        /* Begin an informational message      	    */ \
-		"PASS: %s:\n" 							       \
-		test_name,      	/* Print the auto-declared test name string */ \
-	return TEST_RETURN_PASS  ; } 	/* The test case has now passed 	    */ \
+ /*
+  * Identifier:
+  * 		TEST_PASS_IF_FALSE(predicate)
+  *
+  * Purpose:
+  * 		Pass a test case if a predicate is false
+  *
+  * Inputs:
+  *    	      predicate	: An arbitrary boolean logical predicate
+  *
+  * Resolution:
+  * 		A contitional statement that tests the predicate. If it is  true
+  * 	       +the test passes.
+  *
+  * Requirements:
+  * 		Must be run within the scope of a test case
+  */			
+#define TEST_PASS_IF_FALSE(predicate) if(!(predicate)) TEST_CASE_PASS()
 
-#define TEST_PASS_IF_TRUE(predicate) \
-	if((predicate)) { 		/* Branch on true predicate       	    */ \
-	fprintf(stdout,		        /* Begin an informational message      	    */ \
-		"PASS: %s:\n" 							       \
-		test_name,      	/* Print the auto-declared test name string */ \
-	return TEST_RETURN_PASS  ; } 	/* The test case has now passed 	    */ \
+ /*
+  * Identifier:
+  *		TEST_PASS_IF_TRUE(predicate)
+  *
+  * Purpose:
+  * 		Pass a test case if a predicate is false
+  *
+  * Inputs:
+  *    	      predicate	: An arbitrary boolean logical predicate
+  *
+  * Resolution:
+  * 		A contitional statement that tests the predicate. If it is  true
+  * 	       +the test passes.
+  *
+  * Requirements:
+  * 		Must be run within the scope of a test case
+  */			
+#define TEST_PASS_IF_TRUE(predicate) if((predicate TEST_CASE_PASS()
 
+// ASSERT is an alias for TEST_FAIL_IF FALSE
 #define ASSERT(predicate) TEST_FAIL_IF_FALSE(predicate)
+
 
 /* SECTION: CORE FUNCTIONALITY MACROS */
 
@@ -198,7 +292,7 @@
 			char * test_name = TO_STRING(test_##name) ; \
 			(void)test_name ; \
 			__VA_ARGS__ \
-			return TEST_RETURN_PASS ; \
+			TEST_CASE_PASS() ; \
 		})
 
  /*
@@ -241,4 +335,7 @@
 	fprintf(stdout, \
 		"Passed %d/%d test cases.\n",test_count_passed,test_count_total) ;}
 
-#endif // TEST_MACROS_H
+
+#endif // ifndef __GNUC__
+
+#endif // ifndef TEST_MACROS_H

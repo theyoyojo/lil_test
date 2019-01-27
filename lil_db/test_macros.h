@@ -12,7 +12,7 @@
 #ifndef TEST_MACROS_H
 #define TEST_MACROS_H
 
-#include <stdlib.h> // Literally just for exit(), NULL
+#include <stdlib.h>
 
 /* Specification of documentation information */
 
@@ -22,11 +22,11 @@
   * Purpose:
   *	
   * Inputs:
-  * 		  comma : An explanation
+  * 		  comma : An explanation of each paramater
   *
-  * 	      saperated : Of each
+  * 	      separated : Sepateted by colon at column 25
   *
-  * 	         params	: Paraaeter
+  * 	         params	: May be excluded if otherwise empty
   *
   * Resolution:
   *		A description of the code generated after the macro
@@ -41,17 +41,16 @@
 
  /* 
   * Identifier:
-  * 		TO_STRING(x)
+  * 		TO_STRING(identifier)
   * Purpose:
   * 		Wrapper for # operator to improve readability
   *
   * Inputs:
-  *	  	      x	: An arbitrary token
+  *	     identifier : An arbitrary token
   *
   * Resolution:
   * 		A usable character string object contianing the text
   * 		of the identifier
-  * 
   */
 #define TO_STRING(identifier) #identifier
 
@@ -87,16 +86,18 @@
 	 function_identifier ;		/* expression evals to function ptr */ \
 	 })				/* close block, eval to func object */	
 
-/* SECTION: ASSERTIONS */
+/* SECTION: ASSERTION MACROS */
 
-#define TEST_RETURN_FAIL 0 		/* Returned by failing assertion */
-#define TEST_RETURN_PASS 1		/* Returned at end of test case control flow */
+#define TEST_RETURN_FAIL 0 		/* Returned by passing test case    */
+#define TEST_RETURN_PASS 1		/* Returned by passing test case    */
 
 // TODO: Next level of abstraction
 #define TEST_ASSERTION_TEMPLATE(action, boolean, predicate) NULL
 
+// TODO
 #define TEST_CASE_PASS()
 
+// TODO
 #define TEST_CASE_FAIL()
 
  /*
@@ -155,19 +156,15 @@
 
  /*
   * Identifier:
-  * 		TEST_CHECK_SPACE(comma, seperated, params)
+  * 		TEST_CHECK_SPACE()
   * Purpose:
-  *	
-  * Inputs:
-  * 		  comma : An explanation
-  *
-  * 	      separated : Of each
-  *
-  * 	         params	: Parameter
+  *		Exit with an error message if there is no more space allocated
+  *	       +for aditional test cases.
   *
   * Resolution:
-  *		A description of the code generated after the macro
-  *	       +is handled by the preprocessor
+  *  		A block of code that prints a describtive error message and
+  *  	       +exits the program, conditionally executed upon truth of
+  *  	       +predicate comparing available space to used space using >=.
   */ 
 #define TEST_CHECK_SPACE() \
 	if (test_count_total >= test_buffspace) {\
@@ -177,6 +174,24 @@
 		test_buffspace) ;\
 		exit(1);}
 
+ /*
+  * Identifier:
+  * 		TEST_CASE(name,...)
+  * Purpose:
+  *		Define a test case
+  * Inputs:
+  * 		   name : A descriptive name of the test case
+  *
+  *    __VA_ARGS_ / ...	: A sequence of zero or more valid executable
+  *    			 +statements
+  *
+  * Resolution:
+  * 		A function named test_name is declared and defined and a pointer
+  * 	       +to the function is saved in the array of existing tests.
+  *
+  * Requirements:
+  *  		TEST_INIT() must be called earilier in control flow
+  */ 
 #define TEST_CASE(name,...) TEST_CHECK_SPACE() ;\
 	tests[test_count_total++] = \
 		LAMBDA(int,(void) {\
@@ -186,14 +201,44 @@
 			return TEST_RETURN_PASS ; \
 		})
 
+ /*
+  * Identifier:
+  * 		TEST_INIT(buffspace)
+  * Purpose:
+  *		Initialize the testing framework and allocate required memory
+  * Inputs:
+  * 	      buffspace : The number of test cases to allocate space for
+  *
+  * Resolution:
+  * 		A variable to count the total number of test cases is
+  * 	       +initialized to 0. Space is allocated for buffspace number
+  * 	       +of test cases.
+  */
 #define TEST_INIT(buffspace) int (*tests[buffspace])(void) ; \
 	unsigned test_count_total = 0 ; \
 	int test_buffspace = buffspace
 
+ /*
+  * Identifier:
+  * 		TEST_EXEC()
+  * Purpose:
+  *		Execute all tests declared earlier in control flow	
+  *
+  * Resolution:
+  *	        A for loop iterates through all declared test cases. A passing
+  *	       +test returns an integer value of 1 and a failing test returns
+  *	       +an integer value of 0, so the value returned by the test case
+  *	       +is added to a count of all tests passed. Following the loop,
+  *	       +the ratio of passed to total test cases is reported.
+  *
+  * Requirements:
+  *  		TEST_INIT() must be called earilier in control flow
+  */ 
 #define TEST_EXEC() { unsigned test_count_passed = 0; \
 	for (unsigned test_counter = 0; test_counter < test_count_total; ++test_counter) {\
 		test_count_passed += tests[test_counter]() ;\
 	}\
-	printf("Passed %d/%d test cases.\n",test_count_passed,test_count_total) ;}
+	fprintf(stdout, \
+		"Passed %d/%d test cases.\n",test_count_passed,test_count_total) ;}
 
 #endif // TEST_MACROS_H

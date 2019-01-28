@@ -30,7 +30,7 @@
   * Identifier:
   * 		DEFINED_IDENFIFIER(comma, seperated, params)
   * Purpose:
-  *	
+  *		Explanation of why this macro is not bloat
   * Inputs:
   * 		  comma : An explanation of each paramater
   *
@@ -86,7 +86,8 @@
   * 			 	}
   *
   * Resolution:
-  * 		A callable anonymous function object
+  * 		A callable anonymous function object. The function captures
+  * 	       +it's enclosing scope at definition, but NOT at execution.
   */
 #define LAMBDA(return_t,...)						       \
 	__extension__	 		/* turn off GCC's pedantry 	    */ \
@@ -95,15 +96,34 @@
 	 __VA_ARGS__			/* insert param list, function body */ \
 	 function_identifier ;		/* expression evals to function ptr */ \
 	})				/* close block, eval to func object */	
+/* Note on lambdas: I could throw a struct in here and straight up save state,
+ * or perform more advanced scope capture by accessing the stack frame directly,
+ * but this may not be the best use of my time */
 
-// TODO: Documentation, error macro section?
-// Consider a beter way to handle the exit: deallcoation, etc
+// TODO:  error macro section?
+// Consider a beter way to handle the exit: deallcoation, goto destructor, etc
+
+ /*
+  * Identifier:
+  * 		TEST_ERROR_ALLOC_FAIL(bytes)
+  * Purpose:
+  * 		Report an allocation error and exit the program.
+  * Inputs:
+  *
+  * 	          bytes	: The size of the memory requested by the failed alloc
+  *
+  * Resolution:
+  *	       	An error message is printed to stderr and the program exits.
+  *
+  * Requirements:
+  *  		Nothing needs to be done after this point
+  */ 
 #define TEST_ERROR_ALLOC_FAIL(bytes) \
 			fprintf(stderr,				\
 			"Reallocation of %lu bytes failed. "	\
 			"Killing self...\n",			\
 			bytes) ;\
-	exit(1) // STUB?
+	exit(1) // Deallocate or hard crash?
 
  /*
   * Identifier:
@@ -149,20 +169,19 @@
 			new_size_bytes) ; }   /* This value is reported too */ \
 		non_void_ptr = temp ;	      /* On success, save address   */ \
 	})() ;				      /* Execute all the above      */ \
-	
-	/* OLD VERSION (broken) */
-	/* void * temp_##non_void_ptr =  \ */
-	/* realloc(non_void_ptr,sizeof(typeof(*non_void_ptr)) * count) ;\ */
-	/* if (!temp) { fprintf(stderr,				\ */
-	/* 		"Reallocation of %lu bytes failed. "	\ */
-	/* 		"Killing self...\n",			\ */
-	/* 		count,					\ */
-	/* 		sizeof(typeof(non_void_ptr))) ;		\ */
-	/* 	TEST_SUITE_ERROR_ALLOC_FAIL() ;			\ */
-	/* }							\ */
-	/* non_void_ptr = (typeof(non_void_ptr))temp ; */
 
-// TODO: documentation
+ /*
+  * Identifier:
+  * 		TEST_MAIN()
+  * Purpose:
+  *		Generate a stub main() using a macro to keep syntax consistent
+  *
+  * Resolution:
+  *		An main function definition that takes no parameters and does
+  *	       +nothing but return 0.
+  * Requirements:
+  *  		main() must not be defined elsewhere in the program
+  */ 
 #define TEST_MAIN() int main(void) {return 0;}
 
 /* SECTION: ASSERTION MACROS */
@@ -188,7 +207,7 @@
 #define TEST_CASE_PASS()						       \
 	fprintf(stdout,		        /* Begin an informational message   */ \
 		"PASS %s\n\n",	        /* Good news			    */ \
-		test_name) ;      	/* Print test case function name    */ \
+		test_name) ;      	/* Print test case function name FIXME    */ \
 	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */
 #else
 #define TEST_CASE_PASS()						       \
@@ -218,7 +237,7 @@
 	fprintf(stderr,		        /* Begin an error message	    */ \
 		"FAIL %s:\n"            /* Bad news                         */ \
 		"\t%s\n",               /* Indented why_string              */ \
-		test_name,      	/* Print test case function name    */ \
+		test_name,      	/* Print test case function name FIXME   */ \
 		why_string) ;  	        /* Print failure defailt            */ \
 	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */
 #else
@@ -320,9 +339,10 @@
 
 /* SECTION: TEST CASE MACROS */
 
-#define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity */
+#define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity     */
+#define TEST_DEFAULT_RESIZE_FACTOR 1.3 /* Ratio for capacity growth */
 			
- /* 
+ /* [OUTDATED. FIXME]
   * Identifier:
   * 		TEST_CHECK_SPACE()
   * Purpose:
@@ -337,7 +357,8 @@
 #define TEST_CHECK_SPACE() \
 	if (set_data.case_count_total >= set_data.case_capacity) {\
 		REALLOCATE_OR_DIE((set_data.cases),	\
-			(set_data.case_capacity *= 1.3) ) 	\
+			(set_data.case_capacity *= \
+			 TEST_DEFAULT_RESIZE_FACTOR )) ;	\
 		REALLOCATE_OR_DIE(set_data.case_names,	\
 				set_data.case_capacity) }
 		
@@ -363,6 +384,8 @@
 	set_data.cases[set_data.case_count_total++] = \
 		LAMBDA(int,(void) {	\
 			char * test_name = TO_STRING(test_##name) ; \
+			set_data.case_names[set_data.case_count_total-1] = \
+				TO_STRING(test_##name) ; \
 			(void)test_name ; \
 			__VA_ARGS__ \
 			TEST_CASE_PASS() ; \
@@ -384,7 +407,6 @@
 	} set_data = { NULL, NULL, 0,0,0, TO_STRING(name) } ;                  \
 	REALLOCATE_OR_DIE((set_data.cases),				       \
 		(set_data.case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
-	/* printf("asdfasdf\n"); */\
 	REALLOCATE_OR_DIE(set_data.case_names,				       \
 		set_data.case_capacity ) ;\
 
@@ -409,6 +431,14 @@
 		TEST_SET_CONSTRUCTOR() ; \
 		__VA_ARGS__ ; \
 		TEST_SET_DESTRUCTOR() ; }
+
+
+	/* concept: not functional */
+	/* void test_set_destructor_##name (void) __attribute__((destructor)) ;\ */
+	/* void test_set_destructor_##name (void) {\ */
+	/* 	TEST_SET_DESTRUCTOR() ; } */ 
+
+	
 
 #endif // ifndef __GNUC__
 

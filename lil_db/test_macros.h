@@ -342,17 +342,18 @@
 #define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity     */
 #define TEST_DEFAULT_RESIZE_FACTOR 1.3 /* Ratio for capacity growth */
 			
- /* [OUTDATED. FIXME]
+ /*
   * Identifier:
   * 		TEST_CHECK_SPACE()
   * Purpose:
-  *		Exit with an error message if there is no more space allocated
-  *	       +for aditional test cases.
+  * 		Check if enough memory is allocated for an aditional test case
+  * 	       +in the current test set. If more is needed, allocate it
   *
   * Resolution:
-  *  		A block of code that prints a describtive error message and
-  *  	       +exits the program, conditionally executed upon truth of
-  *  	       +predicate comparing available space to used space using >=.
+  *  	        A conditional statement that tests if the dynamically allocated
+  *  	       +memory in the current test set's set_data struct is filled. In
+  *  	       +the case of a true result, additional memory is allocated. If
+  *  	       +the allocation fails, the program quits with an error message.
   */ 
 #define TEST_CHECK_SPACE() \
 	if (set_data.case_count_total >= set_data.case_capacity) {\

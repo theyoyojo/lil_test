@@ -4,15 +4,10 @@
  * By Joel Savitz <jsavitz@redhat.com>
  */
 
-// Yeah you're going to need GNU C if you want any of this to make sense 
-#ifndef __GNUC__
-#error "__GNUC__ not defined"
-#else
-
 #include <stdio.h>
 
-#include "lil_db.h"
 #include "test_macros.h"
+#include "lil_db.h"
 
 void foo (void (*f)(void)) {
 	(*f)() ;
@@ -78,7 +73,5 @@ int main(int argc, char * argv[]) {
 
 	return 0 ;
 }
-
-#endif // __GNUC__ ifndef wrapper
 
 /* Valid: LAMBDA(void,(void){printf("λ\n");})() ; */

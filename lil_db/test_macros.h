@@ -4,7 +4,7 @@
  * test_macros.h metasource file
  * By Joel Savitz <jsavitz@redhat.com>
  *
- * Purpose: Extremely lightweight unit testing
+ * Purpose: Extremely lightweight testing suite
  *
  */
 
@@ -95,6 +95,23 @@
 	 function_identifier ;		/* expression evals to function ptr */ \
 	})				/* close block, eval to func object */	
 
+// TODO: Documentation
+#define TEST_SUITE_ERROR_ALLOC_FAIL() \
+	exit(1) // STUB?
+
+// TODO: Documentation
+#define REALLOCATE_OR_DIE(non_void_ptr,count)\
+	void * temp_##non_void_ptr =  \
+	realloc(non_void_ptr,sizeof(typeof(*non_void_ptr)) * count) ;\
+	if (!temp) { fprintf(stderr,				\
+			"Reallocation of %lu bytes failed. "	\
+			"Killing self...\n",			\
+			count,					\
+			sizeof(typeof(non_void_ptr))) ;		\
+		TEST_SUITE_ERROR_ALLOC_FAIL() ;			\
+	}							\
+	non_void_ptr = (typeof(non_void_ptr))temp ;
+
 /* SECTION: ASSERTION MACROS */
 
 #define TEST_RETURN_FAIL 0 		/* Returned by failing test case    */
@@ -183,7 +200,7 @@
   */			
 #define TEST_FAIL_IF_FALSE(predicate) 				              \
 	if(!(predicate))						      \
-	{ TEST_CASE_FAIL("FALSE: \"" TO_STRING(predicate) "\"") }
+	{ TEST_CASE_FAIL("FALSE: \"" TO_STRING(predicate) "\"") ; }
 
  /*
   * Identifier:
@@ -248,9 +265,11 @@
 #define ASSERT(predicate) TEST_FAIL_IF_FALSE(predicate)
 
 
-/* SECTION: CORE FUNCTIONALITY MACROS */
+/* SECTION: TEST CASE MACROS */
 
- /*
+#define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity */
+			
+ /* 
   * Identifier:
   * 		TEST_CHECK_SPACE()
   * Purpose:
@@ -263,13 +282,12 @@
   *  	       +predicate comparing available space to used space using >=.
   */ 
 #define TEST_CHECK_SPACE() \
-	if (test_count_total >= test_buffspace) {\
-	fprintf(stderr, \
-		"Number of test cases cannot excceed value allocated" \
-		" by TEST_INIT() (i.e. %d). Killing self...\n", \
-		test_buffspace) ;\
-		exit(1);}
-
+	if (set_data.case_count_total >= set_data.case_capacity) {\
+		REALLOCATE_OR_DIE((set_data.cases),	\
+			(set_data.case_capacity *= 1.3) ) 	\
+		REALLOCATE_OR_DIE(set_data.case_names,	\
+				set_data.case_capacity) }
+		
  /*
   * Identifier:
   * 		TEST_CASE(name,...)
@@ -289,54 +307,52 @@
   *  		TEST_INIT() must be called earilier in control flow
   */ 
 #define TEST_CASE(name,...) TEST_CHECK_SPACE() ;\
-	tests[test_count_total++] = \
-		LAMBDA(int,(void) {\
+	set_data.cases[set_data.case_count_total++] = \
+		LAMBDA(int,(void) {	\
 			char * test_name = TO_STRING(test_##name) ; \
 			(void)test_name ; \
 			__VA_ARGS__ \
 			TEST_CASE_PASS() ; \
-		})
+		})\
+	//set_data.case_names
+	
 
- /*
-  * Identifier:
-  * 		TEST_INIT(buffspace)
-  * Purpose:
-  *		Initialize the testing framework and allocate required memory
-  * Inputs:
-  * 	      buffspace : The number of test cases to allocate space for
-  *
-  * Resolution:
-  * 		A variable to count the total number of test cases is
-  * 	       +initialized to 0. Space is allocated for buffspace number
-  * 	       +of test cases.
-  */
-#define TEST_INIT(buffspace) int (*tests[buffspace])(void) ; \
-	unsigned test_count_total = 0 ; \
-	int test_buffspace = buffspace
+/* SECTION: TEST SET MACROS */
 
- /*
-  * Identifier:
-  * 		TEST_EXEC()
-  * Purpose:
-  *		Execute all tests declared earlier in control flow	
-  *
-  * Resolution:
-  *	        A for loop iterates through all declared test cases. A passing
-  *	       +test returns an integer value of 1 and a failing test returns
-  *	       +an integer value of 0, so the value returned by the test case
-  *	       +is added to a count of all tests passed. Following the loop,
-  *	       +the ratio of passed to total test cases is reported.
-  *
-  * Requirements:
-  *  		TEST_INIT() must be called earilier in control flow
-  */ 
-#define TEST_EXEC() { unsigned test_count_passed = 0; \
-	for (unsigned test_counter = 0; test_counter < test_count_total; ++test_counter) {\
-		test_count_passed += tests[test_counter]() ;\
+#define TEST_SET_CONSTRUCTOR() 						       \
+	struct {							       \
+		int (**cases)(void) ;/* 8 bytes */                             \
+		char ** case_names ;					       \
+		size_t case_capacity ;					       \
+		size_t case_count_total ;   /* size_t could be 4 or 8 bytes */ \
+		size_t case_count_passed ;				       \
+		char test_set_name[sizeof(TO_STRING(name))] ; /* DEDUCED */    \
+	} set_data = { NULL, NULL, 0,0,0, TO_STRING(name) } ;                  \
+	REALLOCATE_OR_DIE((set_data.cases),				       \
+		(set_data.case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
+	/* REALLOCATE_OR_DIE(set_data.case_names,				       \ */
+	/* 	set_data.case_capacity ) */
+
+#define TEST_SET_DESTRUCTOR() \
+	for (unsigned i = 0; i < set_data.case_count_total; ++i) {\
+		set_data.case_count_passed += set_data.cases[i]() ;\
 	}\
-	fprintf(stdout, \
-		"Passed %d/%d test cases.\n",test_count_passed,test_count_total) ;}
+	fprintf(stdout,\
+		"\nFINISHED: %s\n" \
+		"\tPassed %d/%d test cases.\n\n",\
+			__func__,\
+			set_data.case_count_passed,\
+			set_data.case_count_total ) ; \
+	free(set_data.cases)
+		
 
+// Priority as paramater?
+#define TEST_SET(name,...)\
+	void test_set_##name (void) __attribute__((constructor)) ;             \
+	void test_set_##name (void) { \
+		TEST_SET_CONSTRUCTOR() ; \
+		__VA_ARGS__ ; \
+		TEST_SET_DESTRUCTOR() ;}
 
 #endif // ifndef __GNUC__
 

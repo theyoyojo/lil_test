@@ -1,8 +1,8 @@
 /* SECTION: GENERAL INFORMATION */
-
+		
 /*
  * File description:
- * 		test_macros.h GNUC metasource file
+ * 		test_macros.h GNUC metasource header file
  *
  * Author:
  * 		Joel Savitz <jsavitz@redhat.com>

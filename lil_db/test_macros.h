@@ -1,10 +1,18 @@
 /* SECTION: GENERAL INFORMATION */
 
 /*
- * test_macros.h metasource file
- * By Joel Savitz <jsavitz@redhat.com>
+ * File description:
+ * 		test_macros.h GNUC metasource file
  *
- * Purpose: Extremely lightweight testing suite
+ * Author:
+ * 		Joel Savitz <jsavitz@redhat.com>
+ *
+ * Purpose:
+ * 		Extremely lightweight testing for GNUC compatible compilers
+ *
+ * Note: 	
+ * 		Any //-style comments are intended as temporary notes and TODOs to
+ * 	       +eventually resolve and remove.
  */
 
 #ifndef TEST_MACROS_H
@@ -96,9 +104,9 @@
 	 __VA_ARGS__			/* insert param list, function body */ \
 	 function_identifier ;		/* expression evals to function ptr */ \
 	})				/* close block, eval to func object */	
-/* Note on lambdas: I could throw a struct in here and straight up save state,
- * or perform more advanced scope capture by accessing the stack frame directly,
- * but this may not be the best use of my time */
+// Note on lambdas: I could throw a struct in here and straight up save state,
+// or perform more advanced scope capture by accessing the stack frame directly,
+// but this may not be the best use of my time
 
 // TODO:  error macro section?
 // Consider a beter way to handle the exit: deallcoation, goto destructor, etc
@@ -212,7 +220,7 @@
 #else
 #define TEST_CASE_PASS()						       \
 	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */
-#endif // ifdef TEST_OPTION_VERBOSE
+#endif /* ifdef TEST_OPTION_VERBOSE */
 
  /*
   * Identifier:
@@ -243,7 +251,7 @@
 #else
 #define TEST_CASE_FAIL(why_string)					       \
 	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */
-#endif // ifndef TEST_OPTION_SUPPRESS_FAILURE
+#endif /* ifndef TEST_OPTION_SUPPRESS_FAILURE */
 
 
 // TODO
@@ -425,22 +433,35 @@
 	free(set_data.case_names) ;\
 		
 
-// Priority as paramater?
+
+ /*
+  * Identifier:
+  * 		DEFINED_IDENFIFIER(comma, seperated, params)
+  * Purpose:
+  *		Explanation of why this macro is not bloat
+  * Inputs:
+  * 		  comma : An explanation of each paramater
+  *
+  * 	      separated : Sepateted by colon at column 25
+  *
+  * 	         params	: May be excluded if otherwise empty
+  *
+  * Resolution:
+  *		A description of the code generated after the macro
+  *	       +is handled by the preprocessor
+  *
+  * Requirements:
+  * 		Any prerequisites to the processing of this macro, if any.
+  * 		This section may be excluded if it would otherwise be empty
+  */ 
 #define TEST_SET(name,...)\
 	void test_set_##name (void) __attribute__((constructor)) ;             \
 	void test_set_##name (void) { \
 		TEST_SET_CONSTRUCTOR() ; \
 		__VA_ARGS__ ; \
 		TEST_SET_DESTRUCTOR() ; }
+// Priority as parameter?
 
+#endif /* ifndef __GNUC__ */
 
-	/* concept: not functional */
-	/* void test_set_destructor_##name (void) __attribute__((destructor)) ;\ */
-	/* void test_set_destructor_##name (void) {\ */
-	/* 	TEST_SET_DESTRUCTOR() ; } */ 
-
-	
-
-#endif // ifndef __GNUC__
-
-#endif // ifndef TEST_MACROS_H
+#endif /* ifndef TEST_MACROS_H */

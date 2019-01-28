@@ -46,6 +46,11 @@ TEST_SET(demo3,
 		ASSERT((test = fopen("DUMMY","a+"))) ;
 		fclose(test) ;
 	) ;
+
+	TEST_CASE(file_removed,
+		TEST_PASS_IF_FALSE(remove("DUMMY")) ;
+	) ;
+
 ) ;
 
 TEST_MAIN() ;

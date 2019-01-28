@@ -5,12 +5,15 @@
  * By Joel Savitz <jsavitz@redhat.com>
  *
  * Purpose: Extremely lightweight testing suite
- *
  */
-
 
 #ifndef TEST_MACROS_H
 #define TEST_MACROS_H
+
+/* Dependencies */
+
+#include <stdio.h>
+#include <stdlib.h>
 
 /* GNU C is REQUIRED for usage of these macros */
 #ifndef __GNUC__
@@ -20,8 +23,6 @@
 /* Output display options */
 #define TEST_OPTION_VERBOSE 		 /* Show all passes */
 #undef TEST_OPTION_SUPPRESS_FAILURE	 /* Show all fails  */
-
-#include <stdlib.h>
 
 /* Specification of documentation information */
 
@@ -101,16 +102,31 @@
 
 // TODO: Documentation
 #define REALLOCATE_OR_DIE(non_void_ptr,count)\
-	void * temp_##non_void_ptr =  \
-	realloc(non_void_ptr,sizeof(typeof(*non_void_ptr)) * count) ;\
-	if (!temp) { fprintf(stderr,				\
+	LAMBDA(void,(void) {\
+		void * temp = NULL;\
+		if (!(temp = realloc(non_void_ptr,\
+			sizeof(typeof(*non_void_ptr)) * count))) {\
+			fprintf(stderr,				\
 			"Reallocation of %lu bytes failed. "	\
 			"Killing self...\n",			\
-			count,					\
 			sizeof(typeof(non_void_ptr))) ;		\
-		TEST_SUITE_ERROR_ALLOC_FAIL() ;			\
-	}							\
-	non_void_ptr = (typeof(non_void_ptr))temp ;
+		TEST_SUITE_ERROR_ALLOC_FAIL() ; }		\
+		non_void_ptr = temp ;				\
+	})() ; // Execute
+	
+	/* void * temp_##non_void_ptr =  \ */
+	/* realloc(non_void_ptr,sizeof(typeof(*non_void_ptr)) * count) ;\ */
+	/* if (!temp) { fprintf(stderr,				\ */
+	/* 		"Reallocation of %lu bytes failed. "	\ */
+	/* 		"Killing self...\n",			\ */
+	/* 		count,					\ */
+	/* 		sizeof(typeof(non_void_ptr))) ;		\ */
+	/* 	TEST_SUITE_ERROR_ALLOC_FAIL() ;			\ */
+	/* }							\ */
+	/* non_void_ptr = (typeof(non_void_ptr))temp ; */
+
+// TODO: documentation
+#define TEST_MAIN() int main(void) {return 0;}
 
 /* SECTION: ASSERTION MACROS */
 
@@ -313,8 +329,9 @@
 			(void)test_name ; \
 			__VA_ARGS__ \
 			TEST_CASE_PASS() ; \
-		})\
-	//set_data.case_names
+		});\
+	//set_data.case_names TODO
+	//set_data.case_execution_id TODO
 	
 
 /* SECTION: TEST SET MACROS */
@@ -330,8 +347,9 @@
 	} set_data = { NULL, NULL, 0,0,0, TO_STRING(name) } ;                  \
 	REALLOCATE_OR_DIE((set_data.cases),				       \
 		(set_data.case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
-	/* REALLOCATE_OR_DIE(set_data.case_names,				       \ */
-	/* 	set_data.case_capacity ) */
+	/* printf("asdfasdf\n"); */\
+	REALLOCATE_OR_DIE(set_data.case_names,				       \
+		set_data.case_capacity ) ;\
 
 #define TEST_SET_DESTRUCTOR() \
 	for (unsigned i = 0; i < set_data.case_count_total; ++i) {\
@@ -339,11 +357,12 @@
 	}\
 	fprintf(stdout,\
 		"\nFINISHED: %s\n" \
-		"\tPassed %d/%d test cases.\n\n",\
+		"\tPassed %lu/%lu test cases.\n\n",\
 			__func__,\
 			set_data.case_count_passed,\
 			set_data.case_count_total ) ; \
-	free(set_data.cases)
+	free(set_data.cases);\
+	free(set_data.case_names) ;\
 		
 
 // Priority as paramater?
@@ -352,7 +371,7 @@
 	void test_set_##name (void) { \
 		TEST_SET_CONSTRUCTOR() ; \
 		__VA_ARGS__ ; \
-		TEST_SET_DESTRUCTOR() ;}
+		TEST_SET_DESTRUCTOR() ; }
 
 #endif // ifndef __GNUC__
 

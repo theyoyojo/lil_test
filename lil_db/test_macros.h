@@ -96,24 +96,61 @@
 	 function_identifier ;		/* expression evals to function ptr */ \
 	})				/* close block, eval to func object */	
 
-// TODO: Documentation
-#define TEST_SUITE_ERROR_ALLOC_FAIL() \
-	exit(1) // STUB?
-
-// TODO: Documentation
-#define REALLOCATE_OR_DIE(non_void_ptr,count)\
-	LAMBDA(void,(void) {\
-		void * temp = NULL;\
-		if (!(temp = realloc(non_void_ptr,\
-			sizeof(typeof(*non_void_ptr)) * count))) {\
+// TODO: Documentation, error macro section?
+// Consider a beter way to handle the exit: deallcoation, etc
+#define TEST_ERROR_ALLOC_FAIL(bytes) \
 			fprintf(stderr,				\
 			"Reallocation of %lu bytes failed. "	\
 			"Killing self...\n",			\
-			sizeof(typeof(non_void_ptr))) ;		\
-		TEST_SUITE_ERROR_ALLOC_FAIL() ; }		\
-		non_void_ptr = temp ;				\
-	})() ; // Execute
+			bytes) ;\
+	exit(1) // STUB?
+
+ /*
+  * Identifier:
+  * 		REALLOCATE_OR_DIE(non_void_ptr, count)
+  * Purpose:
+  *		Reallocate any memory held by the non_void_ptr to hold count
+  *	       +number of items of it's type, or die trying (quit w/ error).
+  * Inputs:
+  *
+  * 	   non_void_ptr : A non-void pointer to memory to be reallocated
+  *
+  * 	          count : The number of items (of the type the non_void_ptr
+  * 	          	 +references) for which space will be allocated
+  *
+  * Resolution:
+  * 		A lambda function is embeded in the current scope and executed
+  * 	       +following it's definition. The lambda creates a temporary
+  * 	       +void ptr to hold the result of a call to realloc() that targets
+  * 	       +the memory at the address of non_void_ptr. If the reallocation
+  * 	       +is successful, the new address is saved as the value of
+  * 	       +non_void_ptr. If the reallocation fails, an error message is
+  * 	       +printed to stderr and the program terminates itself.
+  *
+  * Requirements:
+  *  		non_void_ptr MUST not be void, obviously. Type deduction is
+  *  	       +done by dereferencing this parameter and passing it to typeof
+  *  	       +and a void pointer must not be dereferenced. I suppose that
+  *  	       +one would benefit from having free memory on their machine
+  *  	       +as well if they don't like memory allocation errors.
+  */ 
+#define REALLOCATE_OR_DIE(non_void_ptr,count)\
+	LAMBDA(void,(void) {		      /* We begin our simple lambda */ \
+		void * temp = NULL;	      /* Initialize a temp void ptr */ \
+		size_t new_size_bytes =       /* Calc the size to alloc     */ \
+			sizeof(		      /* We use the sizeof keyword  */ \
+			typeof(*non_void_ptr) /* On the type pointed at     */ \
+			) * count ;	      /* And multiply by our count  */ \
+		if (!(temp =		      /* Branch on NULL in temp     */ \
+			realloc(	      /* Returns NULL on failure    */ \
+				non_void_ptr, /* References our memory      */ \
+				new_size_bytes/* We want this much space    */ \
+		))) { TEST_ERROR_ALLOC_FAIL(  /* Report the error and exit  */ \
+			new_size_bytes) ; }   /* This value is reported too */ \
+		non_void_ptr = temp ;	      /* On success, save address   */ \
+	})() ;				      /* Execute all the above      */ \
 	
+	/* OLD VERSION (broken) */
 	/* void * temp_##non_void_ptr =  \ */
 	/* realloc(non_void_ptr,sizeof(typeof(*non_void_ptr)) * count) ;\ */
 	/* if (!temp) { fprintf(stderr,				\ */

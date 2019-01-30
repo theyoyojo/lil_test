@@ -33,10 +33,14 @@ TEST_SET(demo2,
 	) ;
 	TEST_CASE(will_fail_silently,TEST_CASE_FAIL("")) ;
 
+	TEST_CASE(passes,TEST_PASS_IF_TRUE(1)) ;
+
 	TEST_CASE(new_pass_if_false,TEST_PASS_IF_FALSE(0)) ;
 )
 
+// Everything in test_set scope is done before anything in a test_case scope
 TEST_SET(demo3,
+
 	char filename[] = "DUMMY" ;	
 	lil_db_init(filename,sizeof(filename)) ;
 	lil_db_kill() ;
@@ -48,14 +52,24 @@ TEST_SET(demo3,
 	) ;
 
 	TEST_CASE(file_removed,
+
 		TEST_PASS_IF_FALSE(remove("DUMMY")) ;
 	) ;
 
+	TEST_CASE(aaa) ;
+	TEST_CASE(bbb,) ;
+	TEST_CASE(ccc,
+		printf("test CCC-1\n") ;	
+	) ;
+	TEST_CASE(ccc,
+		printf("test CCC-2\n") ;	
+	) ;
 ) ;
+
 
 TEST_MAIN() ;
 
 /* 
- * The following is valid:
+ * The following is valid GNU C and it's output is λ, given LAMBDA is defined
  * LAMBDA(void,(void){printf("λ\n");})() ;
  */

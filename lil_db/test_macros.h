@@ -8,7 +8,7 @@
  * 		Joel Savitz <jsavitz@redhat.com>
  *
  * Purpose:
- * 		Extremely lightweight testing for GNUC compatible compilers
+ * 		Extremely lightweight testing framework for GNU C
  *
  * Note: 	
  * 		Any //-style comments are intended as temporary notes and TODOs to
@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* GNU C is REQUIRED for usage of these macros */
 #ifndef __GNUC__
@@ -106,7 +107,9 @@
 	})				/* close block, eval to func object */	
 // Note on lambdas: I could throw a struct in here and straight up save state,
 // or perform more advanced scope capture by accessing the stack frame directly,
-// but this may not be the best use of my time
+// but this may not be the best use of my time. This could essentially be an
+// implementation of the functionality of template functors in C++ (i.e.
+// callable objects that save state
 
 // TODO:  error macro section?
 // Consider a beter way to handle the exit: deallcoation, goto destructor, etc
@@ -126,12 +129,12 @@
   * Requirements:
   *  		Nothing needs to be done after this point
   */ 
-#define TEST_ERROR_ALLOC_FAIL(bytes) \
+#define TEST_ERROR_ALLOC_FAIL(bytes) 				\
 			fprintf(stderr,				\
 			"Reallocation of %lu bytes failed. "	\
 			"Killing self...\n",			\
 			bytes) ;\
-	exit(1) // Deallocate or hard crash?
+	exit(1) // Deallocate or hard crash? FIXME
 
  /*
   * Identifier:
@@ -215,7 +218,7 @@
 #define TEST_CASE_PASS()						       \
 	fprintf(stdout,		        /* Begin an informational message   */ \
 		"PASS %s\n\n",	        /* Good news			    */ \
-		test_name) ;      	/* Print test case function name FIXME    */ \
+		this->case_names[case_id]) ;   	/* Print case name          */ \
 	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */
 #else
 #define TEST_CASE_PASS()						       \
@@ -245,7 +248,7 @@
 	fprintf(stderr,		        /* Begin an error message	    */ \
 		"FAIL %s:\n"            /* Bad news                         */ \
 		"\t%s\n",               /* Indented why_string              */ \
-		test_name,      	/* Print test case function name FIXME   */ \
+		this->case_names[case_id], /* Print test case function name */ \
 		why_string) ;  	        /* Print failure defailt            */ \
 	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */
 #else
@@ -339,7 +342,7 @@
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_PASS_IF_TRUE(predicate) if((predicate TEST_CASE_PASS()
+#define TEST_PASS_IF_TRUE(predicate) if(predicate) TEST_CASE_PASS()
 
 // ASSERT is an alias for TEST_FAIL_IF FALSE (for now)
 #define ASSERT(predicate) TEST_FAIL_IF_FALSE(predicate)
@@ -347,8 +350,8 @@
 
 /* SECTION: TEST CASE MACROS */
 
-#define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity     */
-#define TEST_DEFAULT_RESIZE_FACTOR 1.3 /* Ratio for capacity growth */
+#define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity (arbitrary)  */
+#define TEST_DEFAULT_RESIZE_FACTOR 1.3 /* Ratio for capacity growth          */
 			
  /*
   * Identifier:
@@ -363,9 +366,9 @@
   *  	       +the case of a true result, additional memory is allocated. If
   *  	       +the allocation fails, the program quits with an error message.
   */ 
-#define TEST_CHECK_SPACE() \
+#define TEST_CHECK_SPACE() 						       \
 	if (set_data.case_count_total >= set_data.case_capacity) {\
-		REALLOCATE_OR_DIE((set_data.cases),	\
+		REALLOCATE_OR_DIE((set_data.cases),\
 			(set_data.case_capacity *= \
 			 TEST_DEFAULT_RESIZE_FACTOR )) ;	\
 		REALLOCATE_OR_DIE(set_data.case_names,	\
@@ -375,7 +378,7 @@
   * Identifier:
   * 		TEST_CASE(name,...)
   * Purpose:
-  *		Define a test case
+  *		Define a test case, the core building block of this system
   * Inputs:
   * 		   name : A descriptive name of the test case
   *
@@ -387,54 +390,85 @@
   * 	       +to the function is saved in the array of existing tests.
   *
   * Requirements:
-  *  		TEST_INIT() must be called earilier in control flow
+  *  	        A test case must be defined directly within the scope of a test
+  *  	       +set
   */ 
 #define TEST_CASE(name,...) TEST_CHECK_SPACE() ;\
+	printf("case_total: %lu\n",this->case_count_total) ;\
 	set_data.cases[set_data.case_count_total++] = \
-		LAMBDA(int,(void) {	\
-			char * test_name = TO_STRING(test_##name) ; \
-			set_data.case_names[set_data.case_count_total-1] = \
-				TO_STRING(test_##name) ; \
-			(void)test_name ; \
+		LAMBDA(int,(size_t case_id) {	\
+			char case_name[] = TO_STRING(test_##name) ;\
+			REALLOCATE_OR_DIE(this->case_names[case_id],sizeof(case_name)) ; \
+			strncpy(this->case_names[case_id],case_name,sizeof(case_name)) ; \
 			__VA_ARGS__ \
 			TEST_CASE_PASS() ; \
 		});\
-	//set_data.case_names TODO
-	//set_data.case_execution_id TODO
+// Note to self (joel) lambda scope capture is at definition NOT point of call!
 	
 
 /* SECTION: TEST SET MACROS */
 
-#define TEST_SET_CONSTRUCTOR() 						       \
-	struct {							       \
-		int (**cases)(void) ;/* 8 bytes */                             \
+ /* TODO: docs */
+#define TEST_SET_CONSTRUCTOR(name)					       \
+	struct set_data {						       \
+		int (**cases)(size_t case_id) ;/* 8 bytes */                   \
 		char ** case_names ;					       \
 		size_t case_capacity ;					       \
 		size_t case_count_total ;   /* size_t could be 4 or 8 bytes */ \
 		size_t case_count_passed ;				       \
-		char test_set_name[sizeof(TO_STRING(name))] ; /* DEDUCED */    \
+		char set_name[sizeof(TO_STRING(name))] ;/* size is constexpr */\
 	} set_data = { NULL, NULL, 0,0,0, TO_STRING(name) } ;                  \
 	REALLOCATE_OR_DIE((set_data.cases),				       \
 		(set_data.case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
 	REALLOCATE_OR_DIE(set_data.case_names,				       \
-		set_data.case_capacity ) ;\
+		set_data.case_capacity ) ;				       \
+	memset(set_data.case_names,0,set_data.case_capacity) ;		       \
+	struct set_data * this = &set_data ;	/* Hell yeah */		       \
+	this = this; /* shhh gcc */
+// TODO: should this whole macro be broken down a bit more?
 
+ /* TODO: fill this out
+  * Identifier:
+  * 		DEFINED_IDENFIFIER(comma, seperated, params)
+  * Purpose:
+  *		Explanation of why this macro is not bloat
+  * Inputs:
+  * 		  comma : An explanation of each paramater
+  *
+  * 	      separated : Sepateted by colon at column 25
+  *
+  * 	         params	: May be excluded if otherwise empty
+  *
+  * Resolution:
+  *		A description of the code generated after the macro
+  *	       +is handled by the preprocessor
+  *
+  * Requirements:
+  * 		Any prerequisites to the processing of this macro, if any.
+  * 		This section may be excluded if it would otherwise be empty
+  */ 
 #define TEST_SET_DESTRUCTOR() \
-	for (unsigned i = 0; i < set_data.case_count_total; ++i) {\
-		set_data.case_count_passed += set_data.cases[i]() ;\
+	for (size_t i = 0; i < set_data.case_count_total; ++i) {\
+		set_data.case_count_passed += set_data.cases[i](i) ;\
+	}\
+	printf("case names (in %s):\n",this->set_name) ;\
+	for(int i = 0; i < this->case_count_total;++i){\
+		printf("%d: %s\n",i,this->case_names[i]) ;\
 	}\
 	fprintf(stdout,\
-		"\nFINISHED: %s\n" \
+		"\nFINISHED TEST_SET: %s\n" \
 		"\tPassed %lu/%lu test cases.\n\n",\
-			__func__,\
+			set_data.set_name,\
 			set_data.case_count_passed,\
 			set_data.case_count_total ) ; \
-	free(set_data.cases);\
-	free(set_data.case_names) ;\
+	free(this->cases);\
+	for(size_t i = 0; i < this->case_count_total; ++i)\
+	{ free(this->case_names[i]) ; }\
+	free(this->case_names) ;\
 		
 
 
- /*
+ /* TODO: fill this out
   * Identifier:
   * 		DEFINED_IDENFIFIER(comma, seperated, params)
   * Purpose:
@@ -457,7 +491,7 @@
 #define TEST_SET(name,...)\
 	void test_set_##name (void) __attribute__((constructor)) ;             \
 	void test_set_##name (void) { \
-		TEST_SET_CONSTRUCTOR() ; \
+		TEST_SET_CONSTRUCTOR(name) ; \
 		__VA_ARGS__ ; \
 		TEST_SET_DESTRUCTOR() ; }
 // Priority as parameter?

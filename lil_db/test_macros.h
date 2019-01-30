@@ -11,8 +11,41 @@
  * 		Extremely lightweight testing framework for GNU C
  *
  * Note: 	
- * 		Any //-style comments are intended as temporary notes and TODOs to
- * 	       +eventually resolve and remove.
+ * 		Any //-style comments are intended as temporary notes and TODOs
+ * 	       +to eventually resolve and remove. Each section is intended to be
+ * 	       +a layer of abstraction above the previous. 
+ *
+ * Architecture (very brief synopsis):
+ * 		Test sets are defined in global scope and automatically
+ * 	       +executed before main. Test cases are defined within test set
+ * 	       +scope. A function is generated for each test set that executes
+ * 	       +all test cases. The generated function has the following
+ * 	       +phases:
+ * 	       	
+ * 	   Construction : The function defines all data needed to execute the
+ * 	   		 +test set and allocates and initalizes all required
+ * 	   		 +memory and defauly values. A pointer to the test set
+ * 	   		 +data identified by "this" is initialized.
+ * 	   
+ * 	     Definition : All statements in the body of the test set are
+ * 	      		 +executed. This section may include zero or more valid
+ * 	      		 +statements and test cases. Statments within test
+ * 	      		 +cases are NOT executed during this phase, but are
+ * 	      		 +saved to their appropriate test case for the next 
+ * 	      		 +stage. Notably, test cases will capture test set
+ * 	      		 +scope by reference and not by value. Keep in mind,
+ * 	      		 +however, that all variables will reflect the state
+ * 	      		 +of memory subsequent to the execution of all
+ * 	      		 +statements in the test set, regardless of whether the
+ * 	      		 +statements proceed or follow the definition of a
+ * 	      		 +test case in control flow.
+ *
+ *  	      Execution : All test cases defined in the test set are executed.
+ *  	      		 +Passing and failing tests are reported. Subsequently,
+ *  	      		 +the the name of the test set and the ratio of passed
+ *  	      		 +tests to total tests is reported.
+ *
+ *  	    Destruction : All resouces allocated for the test set are free'd.
  */
 
 #ifndef TEST_MACROS_H
@@ -37,13 +70,13 @@
 
  /*
   * Identifier:
-  * 		DEFINED_IDENFIFIER(comma, seperated, params)
+  * 		DEFINED_IDENFIFIER(comma, separated, params)
   * Purpose:
   *		Explanation of why this macro is not bloat
   * Inputs:
   * 		  comma : An explanation of each paramater
   *
-  * 	      separated : Sepateted by colon at column 25
+  * 	      separated : Separated by colon at column 25
   *
   * 	         params	: May be excluded if otherwise empty
   *
@@ -56,7 +89,7 @@
   * 		This section may be excluded if it would otherwise be empty
   */ 
 
-/* SECTION: UTILITY MACROS */
+/* SECTION: UTILITIES */
 
  /* 
   * Identifier:
@@ -181,6 +214,19 @@
 		non_void_ptr = temp ;	      /* On success, save address   */ \
 	})() ;				      /* Execute all the above      */ \
 
+
+
+#define TEST_SET_DATA_TYPEDEF \
+	typedef struct set_data {						       \
+		int (**cases)(size_t case_id) ;/* 8 bytes */                   \
+		char 	** case_names,					       \
+			 * set_name ;/* size is constexpr */\
+		size_t  case_capacity, 					       \
+			case_count_total,   /* size_t could be 4 or 8 bytes */ \
+			case_count_passed, 				       \
+			set_name_size ; \
+	} set_data_t ;
+
  /*
   * Identifier:
   * 		TEST_MAIN()
@@ -193,9 +239,9 @@
   * Requirements:
   *  		main() must not be defined elsewhere in the program
   */ 
-#define TEST_MAIN() int main(void) {return 0;}
+#define TEST_MAIN() TEST_SET_DATA_TYPEDEF int main(void) {return 0;}
 
-/* SECTION: ASSERTION MACROS */
+/* SECTION: ASSERTIONS */
 
 #define TEST_RETURN_FAIL 0 		/* Returned by failing test case    */
 #define TEST_RETURN_PASS 1		/* Returned by passing test case    */
@@ -348,7 +394,7 @@
 #define ASSERT(predicate) TEST_FAIL_IF_FALSE(predicate)
 
 
-/* SECTION: TEST CASE MACROS */
+/* SECTION: TEST CASE GENERATION */
 
 #define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity (arbitrary)  */
 #define TEST_DEFAULT_RESIZE_FACTOR 1.3 /* Ratio for capacity growth          */
@@ -394,7 +440,6 @@
   *  	       +set
   */ 
 #define TEST_CASE(name,...) TEST_CHECK_SPACE() ;\
-	printf("case_total: %lu\n",this->case_count_total) ;\
 	set_data.cases[set_data.case_count_total++] = \
 		LAMBDA(int,(size_t case_id) {	\
 			char case_name[] = TO_STRING(test_##name) ;\
@@ -406,7 +451,10 @@
 // Note to self (joel) lambda scope capture is at definition NOT point of call!
 	
 
-/* SECTION: TEST SET MACROS */
+/* SECTION: TEST SET GENERATION */
+
+// Typedefs: who needs 'em
+#define TEST_SET_DATA_T \
 
  /* TODO: docs */
 #define TEST_SET_CONSTRUCTOR(name)					       \
@@ -427,6 +475,17 @@
 	this = this; /* shhh gcc */
 // TODO: should this whole macro be broken down a bit more?
 
+#define TEST_SET_EXECUTOR()	\
+	for (size_t i = 0; i < this->case_count_total; ++i) {\
+		this->case_count_passed += this->cases[i](i) ;\
+	}\
+	fprintf(stdout,\
+		"\nFINISHED TEST_SET: %s\n" \
+		"\tPassed %lu/%lu test cases.\n\n",\
+			this->set_name,\
+			this->case_count_passed,\
+			this->case_count_total ) ; \
+
  /* TODO: fill this out
   * Identifier:
   * 		DEFINED_IDENFIFIER(comma, seperated, params)
@@ -435,7 +494,7 @@
   * Inputs:
   * 		  comma : An explanation of each paramater
   *
-  * 	      separated : Sepateted by colon at column 25
+  * 	      separated : Separated by colon at column 25
   *
   * 	         params	: May be excluded if otherwise empty
   *
@@ -448,19 +507,6 @@
   * 		This section may be excluded if it would otherwise be empty
   */ 
 #define TEST_SET_DESTRUCTOR() \
-	for (size_t i = 0; i < set_data.case_count_total; ++i) {\
-		set_data.case_count_passed += set_data.cases[i](i) ;\
-	}\
-	printf("case names (in %s):\n",this->set_name) ;\
-	for(int i = 0; i < this->case_count_total;++i){\
-		printf("%d: %s\n",i,this->case_names[i]) ;\
-	}\
-	fprintf(stdout,\
-		"\nFINISHED TEST_SET: %s\n" \
-		"\tPassed %lu/%lu test cases.\n\n",\
-			set_data.set_name,\
-			set_data.case_count_passed,\
-			set_data.case_count_total ) ; \
 	free(this->cases);\
 	for(size_t i = 0; i < this->case_count_total; ++i)\
 	{ free(this->case_names[i]) ; }\
@@ -476,7 +522,7 @@
   * Inputs:
   * 		  comma : An explanation of each paramater
   *
-  * 	      separated : Sepateted by colon at column 25
+  * 	      separated : Separated by colon at column 25
   *
   * 	         params	: May be excluded if otherwise empty
   *
@@ -490,11 +536,14 @@
   */ 
 #define TEST_SET(name,...)\
 	void test_set_##name (void) __attribute__((constructor)) ;             \
-	void test_set_##name (void) { \
-		TEST_SET_CONSTRUCTOR(name) ; \
-		__VA_ARGS__ ; \
-		TEST_SET_DESTRUCTOR() ; }
+	void test_set_##name (void) {                                          \
+		TEST_SET_CONSTRUCTOR(name) ;                /* Construction */ \
+		__VA_ARGS__ ;                               /* Definition   */ \
+		TEST_SET_EXECUTOR() ;                       /* Execution    */ \
+		TEST_SET_DESTRUCTOR() ; }	            /* Destruction  */ \
 // Priority as parameter?
+// I like to think of this as the sort of "main" section of this file, as
+// everything going on here happens withing the context of a test set
 
 #endif /* ifndef __GNUC__ */
 

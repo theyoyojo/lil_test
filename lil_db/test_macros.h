@@ -57,6 +57,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO: configuration option header?
+// TODO: move all non-documentation inline commentary to GitHub issues
+// TODO: remove procps and rename repo
+// TODO: a license maybe
+// TODO: better examples
+// TODO: README
+// TODO: output stream config, output format config
+// TODO: identify potential config options
+
 /* GNU C is REQUIRED for usage of these macros */
 #ifndef __GNUC__
 #error "__GNUC__ not defined"
@@ -132,20 +141,15 @@
   * 	       +it's enclosing scope at definition, but NOT at execution.
   */
 #define LAMBDA(return_t,...)						       \
-	__extension__	 		/* turn off GCC's pedantry 	    */ \
-	({				/* begin block expression  	    */ \
-	 return_t function_identifier   /* declare function id & return type*/ \
-	 __VA_ARGS__			/* insert param list, function body */ \
-	 function_identifier ;		/* expression evals to function ptr */ \
-	})				/* close block, eval to func object */	
-// Note on lambdas: I could throw a struct in here and straight up save state,
-// or perform more advanced scope capture by accessing the stack frame directly,
-// but this may not be the best use of my time. This could essentially be an
-// implementation of the functionality of template functors in C++ (i.e.
-// callable objects that save state
-
-// TODO:  error macro section?
-// Consider a beter way to handle the exit: deallcoation, goto destructor, etc
+									       \
+	__extension__	 	       /* turn off GCC's pedantry 	    */ \
+	({			       /* begin block expression  	    */ \
+	 return_t function_identifier  /* declare function id & return type */ \
+	 __VA_ARGS__		       /* insert param list, function body  */ \
+	 function_identifier ;	       /* expression evals to function ptr  */ \
+	})			       /* close block, eval to func object  */ \
+									       \
+/* end #define LAMBDA							    */
 
  /*
   * Identifier:
@@ -160,14 +164,19 @@
   *	       	An error message is printed to stderr and the program exits.
   *
   * Requirements:
-  *  		Nothing needs to be done after this point
+  *  		No other code needs to be executed after this point
   */ 
-#define TEST_ERROR_ALLOC_FAIL(bytes) 				\
-			fprintf(stderr,				\
-			"Reallocation of %lu bytes failed. "	\
-			"Killing self...\n",			\
-			bytes) ;\
-	exit(1) // Deallocate or hard crash? FIXME
+#define TEST_ERROR_ALLOC_FAIL(bytes) 					       \
+									       \
+	fprintf(stderr,			   	/* Begin an error message */   \
+		"Reallocation of"					       \
+		"%lu bytes failed. "			       		       \
+		"Killing self...\n",					       \
+		bytes				/* Got bytes? Not anymore */   \
+	) ;								       \
+	exit(1)       		     /* Storm out of the program in disgust */ \
+									       \
+/* end #define TEST_ERROR_ALLOC_FAIL					    */
 
  /*
   * Identifier:
@@ -199,6 +208,7 @@
   *  	       +as well if they don't like memory allocation errors.
   */ 
 #define REALLOCATE_OR_DIE(non_void_ptr,count)\
+									       \
 	LAMBDA(void,(void) {		      /* We begin our simple lambda */ \
 		void * temp = NULL;	      /* Initialize a temp void ptr */ \
 		size_t new_size_bytes =       /* Calc the size to alloc     */ \
@@ -213,32 +223,8 @@
 			new_size_bytes) ; }   /* This value is reported too */ \
 		non_void_ptr = temp ;	      /* On success, save address   */ \
 	})() ;				      /* Execute all the above      */ \
-
-
-
-typedef struct test_set_data {
-	/* Test cases in the set. Takes case_id as a parameter in order
-	 *+to index the case_names array via a ptr to this struct   */ 
-	int (** cases)(size_t case_id) ;    			       
-								       
-	/* Name strings for each test case */  			       
-	char ** case_names,             			       
-								       
-	/* The name of this test set */ 			       
-	      * set_name ;  					       
-								       
-	/* The capacity of the space allocated for case func ptrs   */ 
-	size_t  case_capacity, 					       
-								       
-	/* The number of defined test cases reachable via the array */ 
-		case_count_total,   	     			       
-								       
-	/* The number of passed test cases determined via execution */ 
-		case_count_passed, 				      
-								       
-	/* The number of bytes in the set_name string, including \0 */ 
-		set_name_size ; 				      
-} test_set_data_t ;
+									       \
+/* end #define REALLOCATE_OR_DIE					    */
 
  /*
   * Identifier:
@@ -276,13 +262,15 @@ typedef struct test_set_data {
   */ 
 #ifdef TEST_OPTION_VERBOSE
 #define TEST_CASE_PASS()						       \
+									       \
 	fprintf(stdout,		        /* Begin an informational message   */ \
 		"PASS %s\n\n",	        /* Good news			    */ \
-		this->case_names[case_id]) ;   	/* Print case name          */ \
-	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */
+		this->case_names[case_id]) ;   	     /* Print case name     */ \
+	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */ \
+									       \
+/* end #define TEST_CASE_PASS						    */
 #else
-#define TEST_CASE_PASS()						       \
-	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */
+#define TEST_CASE_PASS() return TEST_RETURN_PASS ; /* The case has passed   */
 #endif /* ifdef TEST_OPTION_VERBOSE */
 
  /*
@@ -305,24 +293,18 @@ typedef struct test_set_data {
   */
 #ifndef TEST_OPTION_SUPPRESS_FAILURE
 #define TEST_CASE_FAIL(why_string)					       \
-	fprintf(stderr,		        /* Begin an error message	    */ \
+									       \
+	fprintf(stdout,		        /* Begin an informational message   */ \
 		"FAIL %s:\n"            /* Bad news                         */ \
 		"\t%s\n",               /* Indented why_string              */ \
 		this->case_names[case_id], /* Print test case function name */ \
 		why_string) ;  	        /* Print failure defailt            */ \
-	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */
+	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */ \
+									       \
+/* end #define TEST_CASE_FAIL						    */
 #else
-#define TEST_CASE_FAIL(why_string)					       \
-	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */
+#define TEST_CASE_FAIL(why_string) return TEST_RETURN_FAIL ; /* test failed */
 #endif /* ifndef TEST_OPTION_SUPPRESS_FAILURE */
-
-
-// TODO
-//#define TEST_WARN_IF_TRUE()
-//#define TEST_WARN_IF_FALSE()
-
-// TODO: Hell yeah
-//#define TEST_ALLOC_FREE(typename,copies)
 
  /*
   * Identifier:
@@ -341,9 +323,12 @@ typedef struct test_set_data {
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_CASE_FAIL_IF_FALSE(predicate) 				              \
-	if(!(predicate))						      \
-	{ TEST_CASE_FAIL("FALSE: \"" TO_STRING(predicate) "\"") ; }
+#define TEST_CASE_FAIL_IF_FALSE(predicate) 			               \
+									       \
+	if(!(predicate))						       \
+	{ TEST_CASE_FAIL("FALSE: \"" TO_STRING(predicate) "\"") ; }	       \
+									       \
+/* end #define TEST_CASE_FAIL_IF_FALSE					    */
 
  /*
   * Identifier:
@@ -362,9 +347,12 @@ typedef struct test_set_data {
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_CASE_FAIL_IF_TRUE(predicate)				               \
+#define TEST_CASE_FAIL_IF_TRUE(predicate)			               \
+									       \
 	if((predicate))						               \
-	{ TEST_CASE_FAIL("TRUE: \"" TO_STRING(predicate) "\"") }
+	{ TEST_CASE_FAIL("TRUE: \"" TO_STRING(predicate) "\"") }	       \
+									       \
+/* end #define TEST_CASE_FAIL_IF_TRUE					    */
 
  /*
   * Identifier:
@@ -404,7 +392,9 @@ typedef struct test_set_data {
   */			
 #define TEST_CASE_PASS_IF_TRUE(predicate) if(predicate) TEST_CASE_PASS() ;
 
-// ASSERT is an alias for TEST_CASE_FAIL_IF FALSE (for now)
+// TODO: cleanup on isle 395 FIXME this number changes
+// ASSERT is an alias for TEST_CASE_FAIL_IF_FALSE (for now)
+
 #define ASSERT(predicate) TEST_CASE_FAIL_IF_FALSE(predicate)
 
 #define ASSERT_FALSE(predicate) TEST_CASE_FAIL_IF_FALSE(predicate)
@@ -413,6 +403,7 @@ typedef struct test_set_data {
 
 /* SECTION: TEST CASE GENERATION */
 
+// TODO: move to configuration
 #define TEST_DEFAULT_CASE_BUFFSIZE 100 /* Initial case_capacity (arbitrary)  */
 #define TEST_DEFAULT_RESIZE_FACTOR 1.3 /* Ratio for capacity growth          */
 			
@@ -430,13 +421,24 @@ typedef struct test_set_data {
   *  	       +the allocation fails, the program quits with an error message.
   */ 
 #define TEST_CHECK_SPACE() 						       \
-	if (this->case_count_total >= this->case_capacity) {\
-		REALLOCATE_OR_DIE(this->cases,\
-			(this->case_capacity *= \
-			 TEST_DEFAULT_RESIZE_FACTOR )) ;	\
-		REALLOCATE_OR_DIE(this->case_names,	\
-				this->case_capacity) }
-// FIXME: formatting
+									       \
+	if (this->case_count_total >= 	/* If count of test cases defined   */ \
+		this->case_capacity) {  /* Is at/above allocated capacity   */ \
+		this->case_capacity *=  /* Increase the capacity value 	    */ \
+			TEST_DEFAULT_RESIZE_FACTOR ; /* By default factor   */ \
+									       \
+		REALLOCATE_OR_DIE(	/* First reallocate test case space */ \
+			this->cases,        /* Located at this address 	    */ \
+			this->case_capacity /* Using out new capacity value */ \
+		) ;							       \
+									       \
+		REALLOCATE_OR_DIE(	/* Next reallocated case name space */ \
+			this->case_names,   /* Located at this address 	    */ \
+			this->case_capacity /* Using out new capacity value */ \
+		) ;							       \
+	} /* end if() */						       \
+									       \
+/* end #define TEST_CHECK_SPACE */
 		
  /*
   * Identifier:
@@ -457,17 +459,33 @@ typedef struct test_set_data {
   *  	        A test case must be defined directly within the scope of a test
   *  	       +set
   */ 
-#define TEST_CASE(name,...) TEST_CHECK_SPACE() ;\
-	this->cases[this->case_count_total++] = \
-		LAMBDA(int,(size_t case_id) {	\
-			char case_name[] = TO_STRING(test_##name) ;\
-			REALLOCATE_OR_DIE(this->case_names[case_id],sizeof(case_name)) ; \
-			strncpy(this->case_names[case_id],case_name,sizeof(case_name)) ; \
-			__VA_ARGS__ \
-			TEST_CASE_PASS() ; \
-		});\
-// Note to self (joel) lambda scope capture is at definition NOT point of call!
-	
+#define TEST_CASE(name,...)						       \
+									       \
+	TEST_CHECK_SPACE() ;	/* Guarentee sufficent space for new tests  */ \
+	this->cases[this->case_count_total++] = /* Add a new tes case	    */ \
+		LAMBDA(int,(size_t case_id) 	/* Defined using our lambda */ \
+		{							       \
+			char case_name[] =	/* Generate our case_name   */ \
+				TO_STRING(test_##name) ; /* Using the cpp   */ \
+									       \
+			REALLOCATE_OR_DIE(      /* Guarentee reallocation   */ \
+				this->case_names[case_id], /* For case_name */ \
+				sizeof(case_name)  	   /* Of this size  */ \
+			) ;						       \
+									       \
+			 /* Safe strcpy(): buffer space and 		    */ \
+			 /* \0-termination guarenteed above  		    */ \
+			strcpy( 					       \
+				this->case_names[case_id], /* alloc'd above */ \
+				case_name 		   /* cpp generated */ \
+			) ;						       \
+									       \
+			__VA_ARGS__ 	 /* Test case body: assertions, etc */ \
+									       \
+			TEST_CASE_PASS() ; /* If this runs, the test passes */ \
+		});							       \
+									       \
+/* end #define TEST_CASE 				                    */
 
 /* SECTION: TEST SET GENERATION */
 
@@ -518,18 +536,27 @@ typedef struct test_set_data {
 	strcpy(  /* Safe: buffer space and \0-termination guarenteed above  */ \
 		this->set_name, 	/* dest: the newly allocated buffer */ \
 		TO_STRING(name) ) ;     /* src : const char[] from cpp      */ \
+									       \
 /* end #define TEST_SET_CONSTRUCTOR 				            */
 
-#define TEST_SET_EXECUTOR()	\
-	for (size_t i = 0; i < this->case_count_total; ++i) {\
-		this->case_count_passed += this->cases[i](i) ;\
-	}\
-	fprintf(stdout,\
-		"\nFINISHED TEST_SET: %s\n" \
-		"\tPassed %lu/%lu test cases.\n\n",\
-			this->set_name,\
-			this->case_count_passed,\
-			this->case_count_total ) ; \
+#define TEST_SET_EXECUTOR()						       \
+									       \
+	/* EXECUTION */							       \
+	for (size_t i = 0;				/* Iterate through  */ \
+		i < this->case_count_total; ++i) {      /* All test cases   */ \
+		this->case_count_passed += 		/* Count passes     */ \
+			this->cases[i](i) ;	/* By executing test cases  */ \
+	}		/* A test case return 1 for pass and 0 for failure  */ \
+									       \
+	/* REPORT */							       \
+	fprintf(stdout,	/* When all test cases in the set have been run,    */ \
+		"\nFINISHED TEST_SET: %s\n"   /* Report which set was run,  */ \
+		"\tPassed %lu/%lu test cases.\n\n", /* and the pass ratio   */ \
+			this->set_name,				               \
+			this->case_count_passed,			       \
+			this->case_count_total ) ;  			       \
+									       \
+/* end #define TEST_SET_EXECUTOR 				            */
 
  /* TODO: fill this out
   * Identifier:
@@ -551,13 +578,17 @@ typedef struct test_set_data {
   * 		Any prerequisites to the processing of this macro, if any.
   * 		This section may be excluded if it would otherwise be empty
   */ 
-#define TEST_SET_DESTRUCTOR() \
-	free(this->cases);\
-	for(size_t i = 0; i < this->case_count_total; ++i)\
-	{ free(this->case_names[i]) ; }\
-	free(this->case_names) ;\
-	free(this->set_name) ;\
-	free(this) ; 
+#define TEST_SET_DESTRUCTOR() 						       \
+									       \
+	free(this->cases) ;			 /* Free function ptr array */ \
+	for(size_t i = 0;			 /* Iterate through the     */ \
+		i < this->case_count_total; ++i) /* Array of (char *)s      */ \
+		{ free(this->case_names[i]) ; }  /* And free all of them    */ \
+	free(this->case_names) ;		 /* Then free the (char**)  */ \
+	free(this->set_name) ;			 /* Free the last (char*)   */ \
+	free(this) ; 				 /* Lastly, free yourself   */ \
+						 /* I'M FREE AT LAST	    */ \
+/* end #define TEST_SET_DESTRUCTOR					    */
 
  /* TODO: fill this out
   * Identifier:
@@ -579,15 +610,42 @@ typedef struct test_set_data {
   *		TEST_MAIN() is present exactly once in the source
   */ 
 #define TEST_SET(name,...)\
-	void test_set_##name (void) __attribute__((constructor)) ;             \
-	void test_set_##name (void) {                                          \
-		TEST_SET_CONSTRUCTOR(name) ;                /* Construction */ \
-		__VA_ARGS__ ;                               /* Definition   */ \
-		TEST_SET_EXECUTOR() ;                       /* Execution    */ \
-		TEST_SET_DESTRUCTOR() ; }	            /* Destruction  */ \
-// Priority as parameter?
-// I like to think of this as the sort of "main" section of this file, as
-// everything going on here happens withing the context of a test set
+									       \
+	void test_set_##name (void) 	       /* Declare a function to be  */ \
+		__attribute__((constructor)) ; /* autoexec'd before main()  */ \
+									       \
+	void test_set_##name (void) {          /* And immediately define it */ \
+		TEST_SET_CONSTRUCTOR(name) ;         /* Phase: Construction */ \
+		__VA_ARGS__ ;                        /* Phase: Definition   */ \
+		TEST_SET_EXECUTOR() ;                /* Phase: Execution    */ \
+		TEST_SET_DESTRUCTOR() ; }	     /* Phase: Destruction  */ \
+									       \
+/* end #define TEST_SET							    */
+
+// Hey look it's actual source code
+typedef struct test_set_data {
+	/* Test cases in the set. Takes case_id as a parameter in order to  */
+	/* to index the case_names array via a ptr to this struct           */
+	int (** cases)(size_t case_id) ;
+
+	/* Name strings for each test case 				    */
+	char ** case_names,
+
+	/* The name of this test set 				            */
+	      * set_name ;
+
+	/* The capacity of the space allocated for case func ptrs           */
+	size_t  case_capacity,
+
+	/* The number of defined test cases reachable via the array 	    */
+		case_count_total,
+
+	/* The number of passed test cases determined via execution 	    */
+		case_count_passed,
+
+	/* The number of bytes in the set_name string, including \0  	    */
+		set_name_size ;
+} test_set_data_t ;
 
 #endif /* ifndef __GNUC__ */
 

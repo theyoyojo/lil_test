@@ -46,6 +46,10 @@
  *  	      		 +tests to total tests is reported.
  *
  *  	    Destruction : All resouces allocated for the test set are free'd.
+ *
+ *		The macros are very roughly sorted in an order of escalating
+ *	       +abstraction. That is no guarentee, but it may be useful to
+ *	       +know for the purposes of understanding this file.
  */
 
 #ifndef TEST_MACROS_H
@@ -80,8 +84,10 @@
  /*
   * Identifier:
   * 		DEFINED_IDENFIFIER(comma, separated, params)
+  *
   * Purpose:
   *		Explanation of why this macro is not bloat
+  *
   * Inputs:
   * 		  comma : An explanation of each paramater
   *
@@ -96,13 +102,14 @@
   * Requirements:
   * 		Any prerequisites to the processing of this macro, if any.
   * 		This section may be excluded if it would otherwise be empty
-  */ 
+  */
 
 /* SECTION: UTILITIES */
 
  /* 
   * Identifier:
   * 		TO_STRING(identifier)
+  *
   * Purpose:
   * 		Wrapper for # operator to improve readability
   *
@@ -118,6 +125,7 @@
  /* 
   * Identifier:
   * 		LAMBDA(return_t, ...)
+  *
   * Purpose:
   * 		Simple implementation of anonymous function objects
   *
@@ -154,10 +162,11 @@
  /*
   * Identifier:
   * 		TEST_ERROR_ALLOC_FAIL(bytes)
+  *
   * Purpose:
   * 		Report an allocation error and exit the program.
-  * Inputs:
   *
+  * Inputs:
   * 	          bytes	: The size of the memory requested by the failed alloc
   *
   * Resolution:
@@ -165,7 +174,7 @@
   *
   * Requirements:
   *  		No other code needs to be executed after this point
-  */ 
+  */
 #define TEST_ERROR_ALLOC_FAIL(bytes) 					       \
 									       \
 	fprintf(stderr,			   	/* Begin an error message */   \
@@ -181,6 +190,7 @@
  /*
   * Identifier:
   * 		REALLOCATE_OR_DIE(non_void_ptr, count)
+  *
   * Purpose:
   *		Reallocate any memory held by the non_void_ptr to hold count
   *	       +number of items of it's type, or die trying (quit w/ error).
@@ -206,7 +216,7 @@
   *  	       +and a void pointer must not be dereferenced. I suppose that
   *  	       +one would benefit from having free memory on their machine
   *  	       +as well if they don't like memory allocation errors.
-  */ 
+  */
 #define REALLOCATE_OR_DIE(non_void_ptr,count)\
 									       \
 	LAMBDA(void,(void) {		      /* We begin our simple lambda */ \
@@ -229,6 +239,7 @@
  /*
   * Identifier:
   * 		TEST_MAIN()
+  *
   * Purpose:
   *		Generate a stub main().
   *
@@ -238,7 +249,7 @@
   *
   * Requirements:
   *  		main() must not be defined elsewhere in the program
-  */ 
+  */
 #define TEST_MAIN() int main(void) { return 0 ; }
 
 /* SECTION: ASSERTIONS */
@@ -259,7 +270,7 @@
   *
   * Requirements:
   * 		Must be run within the scope of a test case.
-  */ 
+  */
 #ifdef TEST_OPTION_VERBOSE
 #define TEST_CASE_PASS()						       \
 									       \
@@ -270,7 +281,7 @@
 									       \
 /* end #define TEST_CASE_PASS						    */
 #else
-#define TEST_CASE_PASS() return TEST_RETURN_PASS ; /* The case has passed   */
+#define TEST_CASE_PASS() return TEST_RETURN_PASS ; /* Test passed           */
 #endif /* ifdef TEST_OPTION_VERBOSE */
 
  /*
@@ -281,7 +292,7 @@
   *		Fail a test case. Report to user unless the option is set.
   *		
   * Inputs:
-  *          why_string : an optional message to display to the standard error
+  *          why_string : an optional message to display to the standard output
   *         		 +stream
   *
   * Resolution:
@@ -297,13 +308,13 @@
 	fprintf(stdout,		        /* Begin an informational message   */ \
 		"FAIL %s:\n"            /* Bad news                         */ \
 		"\t%s\n",               /* Indented why_string              */ \
-		this->case_names[case_id], /* Print test case function name */ \
+		this->case_names[case_id],    /* Print case name            */ \
 		why_string) ;  	        /* Print failure defailt            */ \
 	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */ \
 									       \
 /* end #define TEST_CASE_FAIL						    */
 #else
-#define TEST_CASE_FAIL(why_string) return TEST_RETURN_FAIL ; /* test failed */
+#define TEST_CASE_FAIL(why_string) return TEST_RETURN_FAIL ; /* Test failed */
 #endif /* ifndef TEST_OPTION_SUPPRESS_FAILURE */
 
  /*
@@ -322,7 +333,7 @@
   *
   * Requirements:
   * 		Must be run within the scope of a test case
-  */			
+  */
 #define TEST_CASE_FAIL_IF_FALSE(predicate) 			               \
 									       \
 	if(!(predicate))						       \
@@ -346,7 +357,7 @@
   *
   * Requirements:
   * 		Must be run within the scope of a test case
-  */			
+  */
 #define TEST_CASE_FAIL_IF_TRUE(predicate)			               \
 									       \
 	if((predicate))						               \
@@ -370,7 +381,7 @@
   *
   * Requirements:
   * 		Must be run within the scope of a test case
-  */			
+  */
 #define TEST_CASE_PASS_IF_FALSE(predicate) if(!(predicate)) TEST_CASE_PASS() ;
 
  /*
@@ -389,7 +400,7 @@
   *
   * Requirements:
   * 		Must be run within the scope of a test case
-  */			
+  */
 #define TEST_CASE_PASS_IF_TRUE(predicate) if(predicate) TEST_CASE_PASS() ;
 
 // TODO: cleanup on isle 395 FIXME this number changes
@@ -410,16 +421,17 @@
  /*
   * Identifier:
   * 		TEST_CHECK_SPACE()
+  *
   * Purpose:
   * 		Check if enough memory is allocated for an aditional test case
-  * 	       +in the current test set. If more is needed, allocate it
+  * 	       +in the current test set. If more space is needed, allocate it.
   *
   * Resolution:
   *  	        A conditional statement that tests if the dynamically allocated
   *  	       +memory in the current test set's test_set_data struct is filled. In
   *  	       +the case of a true result, additional memory is allocated. If
   *  	       +the allocation fails, the program quits with an error message.
-  */ 
+  */
 #define TEST_CHECK_SPACE() 						       \
 									       \
 	if (this->case_count_total >= 	/* If count of test cases defined   */ \
@@ -443,8 +455,10 @@
  /*
   * Identifier:
   * 		TEST_CASE(name,...)
+  *
   * Purpose:
-  *		Define a test case, the core building block of this system
+  *		Define a test case, the core unit of this system
+  *
   * Inputs:
   * 		   name : A descriptive name of the test case
   *
@@ -453,12 +467,12 @@
   *
   * Resolution:
   * 		A function named test_name is declared and defined and a pointer
-  * 	       +to the function is saved in the array of existing tests.
+  * 	       +to the function is saved to the current test set.
   *
   * Requirements:
   *  	        A test case must be defined directly within the scope of a test
-  *  	       +set
-  */ 
+  *  	       +set.
+  */
 #define TEST_CASE(name,...)						       \
 									       \
 	TEST_CHECK_SPACE() ;	/* Guarentee sufficent space for new tests  */ \
@@ -489,7 +503,28 @@
 
 /* SECTION: TEST SET GENERATION */
 
- /* TODO: docs */
+ /*
+  * Identifier:
+  * 		TEST_SET_CONSTRUCTOR(name)
+  *
+  * Purpose:
+  * 		Allocate memory to support a set of test cases
+  *
+  * Inputs:
+  * 	           name : A descriptive name for the test set
+  *
+  * Resolution:
+  * 		A test_set_data_t is allocated and it's fields are assigned
+  * 	       +sensible defualt values. Some of these fields are themselves
+  * 	       +dynamically allocated. Any allocation failure is fatal to
+  * 	       +the entire program and is also kind of sad.
+  *
+  * Requirements:
+  * 		Usage of this macro only really makes sense in the context
+  * 	       +the definition of the TEST_SET macro, but I suppose there
+  * 	       +isn't any reason why one could not use this anywhere they
+  * 	       +would like to, provided that no identifiers are redeclared.
+  */
 #define TEST_SET_CONSTRUCTOR(name)					       \
 									       \
 	/* ALLOCATION OF TEST SET DATA STRUCTURE */			       \
@@ -539,6 +574,20 @@
 									       \
 /* end #define TEST_SET_CONSTRUCTOR 				            */
 
+ /*
+  * Identifier:
+  * 		TEST_SET_EXECUTOR()
+  *
+  * Purpose:
+  *		Execute all test cases defined in a test set.
+  *
+  * Resolution:
+  * 		All defined test cases in the cases function pointer array
+  * 	       +are executed and the pass/total ratio is reported.
+  *
+  * Requirements:
+  *  		TEST_SET_CONSTRUCTOR must be called earlier in scope.
+  */
 #define TEST_SET_EXECUTOR()						       \
 									       \
 	/* EXECUTION */							       \
@@ -558,26 +607,29 @@
 									       \
 /* end #define TEST_SET_EXECUTOR 				            */
 
- /* TODO: fill this out
+ /*
   * Identifier:
-  * 		DEFINED_IDENFIFIER(comma, seperated, params)
+  * 		TEST_SET_DESTRUCTOR()
+  *
   * Purpose:
-  *		Explanation of why this macro is not bloat
-  * Inputs:
-  * 		  comma : An explanation of each paramater
-  *
-  * 	      separated : Separated by colon at column 25
-  *
-  * 	         params	: May be excluded if otherwise empty
+  *		Free any dynamically allocated memory associated with a test
+  *	       +set.
   *
   * Resolution:
-  *		A description of the code generated after the macro
-  *	       +is handled by the preprocessor
+  * 		All dynamically allocated fields in the test_set_data_t at
+  * 	       +address "this" are freed, as well as the test_set_data_t
+  * 	       +itself.
   *
   * Requirements:
-  * 		Any prerequisites to the processing of this macro, if any.
-  * 		This section may be excluded if it would otherwise be empty
-  */ 
+  *  		TEST_SET_CONSTRUCTOR was called earlier in scope, and
+  *  		TEST SET_DESTRUCTOR has not already been called since that
+  *  	       +point. Like the constructor, it doesn't really make sense
+  *  	       +to use this outside of the TEST_SET macro definition. Because
+  *  	       +of that, I don't bother to check if any of these fields are
+  *  	       +NULL, because the program will terminate on failed allocation
+  *  	       +when used as intended. But hey, it's open source, do what you
+  *  	       +want.
+  */
 #define TEST_SET_DESTRUCTOR() 						       \
 									       \
 	free(this->cases) ;			 /* Free function ptr array */ \
@@ -590,25 +642,31 @@
 						 /* I'M FREE AT LAST	    */ \
 /* end #define TEST_SET_DESTRUCTOR					    */
 
- /* TODO: fill this out
+ /*
   * Identifier:
-  * 		DEFINED_IDENFIFIER(comma, seperated, params)
+  * 		TEST_SET(name,...)
+  *
   * Purpose:
-  *		Explanation of why this macro is not bloat
+  * 		Define a test set to be executed before main()
+  *
   * Inputs:
-  * 		  comma : An explanation of each paramater
+  * 		   name : A descriptive name of the test set
   *
-  * 	      separated : Separated by colon at column 25
-  *
-  * 	         params	: May be excluded if otherwise empty
+  *    __VA_ARGS_ / ...	: A sequence of zero or more valid executable
+  *    			 +statements, including zero or more test case
+  *    			 +definitions
   *
   * Resolution:
-  *		A description of the code generated after the macro
-  *	       +is handled by the preprocessor
+  * 		A function is declared with the constructor attribute so that
+  *	       +it will run before main(). The function is then imediately
+  *	       +defined with a function body that constructs the required data
+  *	       +for a test set, executes an arbitary number of statements,
+  *	       +optionally including test case definitions, executes any
+  *	       +defined test cases, and frees all allocated memory.
   *
   * Requirements:
-  *		TEST_MAIN() is present exactly once in the source
-  */ 
+  *  		The inclusion of this header file.
+  */
 #define TEST_SET(name,...)\
 									       \
 	void test_set_##name (void) 	       /* Declare a function to be  */ \
@@ -622,7 +680,7 @@
 									       \
 /* end #define TEST_SET							    */
 
-// Hey look it's actual source code
+/* This is the decleration of the data format used to support a test set    */
 typedef struct test_set_data {
 	/* Test cases in the set. Takes case_id as a parameter in order to  */
 	/* to index the case_names array via a ptr to this struct           */

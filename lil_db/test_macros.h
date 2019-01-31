@@ -216,30 +216,44 @@
 
 
 
-#define TEST_SET_DATA_TYPEDEF \
-	typedef struct set_data {						       \
-		int (**cases)(size_t case_id) ;/* 8 bytes */                   \
-		char 	** case_names,					       \
-			 * set_name ;/* size is constexpr */\
-		size_t  case_capacity, 					       \
-			case_count_total,   /* size_t could be 4 or 8 bytes */ \
-			case_count_passed, 				       \
-			set_name_size ; \
-	} set_data_t ;
+typedef struct set_data {					       
+	/* Test cases in the set. Takes case_id as a parameter in order
+	 *+to index the case_names array via a ptr to this struct   */ 
+	int (** cases)(size_t case_id) ;    			       
+								       
+	/* Name strings for each test case */  			       
+	char ** case_names,             			       
+								       
+	/* The name of this test set */ 			       
+	      * set_name ;  					       
+								       
+	/* The capacity of the space allocated for case func ptrs   */ 
+	size_t  case_capacity, 					       
+								       
+	/* The number of defined test cases reachable via the array */ 
+		case_count_total,   	     			       
+								       
+	/* The number of passed test cases determined via execution */ 
+		case_count_passed, 				      
+								       
+	/* The number of bytes in the set_name string, including \0 */ 
+		set_name_size ; 				      
+} set_data_t ;
 
  /*
   * Identifier:
   * 		TEST_MAIN()
   * Purpose:
-  *		Generate a stub main() using a macro to keep syntax consistent
+  *		Generate a stub main().
   *
   * Resolution:
   *		An main function definition that takes no parameters and does
   *	       +nothing but return 0.
+  *
   * Requirements:
   *  		main() must not be defined elsewhere in the program
   */ 
-#define TEST_MAIN() TEST_SET_DATA_TYPEDEF int main(void) {return 0;}
+#define TEST_MAIN() int main(void) { return 0 ; }
 
 /* SECTION: ASSERTIONS */
 
@@ -413,12 +427,13 @@
   *  	       +the allocation fails, the program quits with an error message.
   */ 
 #define TEST_CHECK_SPACE() 						       \
-	if (set_data.case_count_total >= set_data.case_capacity) {\
-		REALLOCATE_OR_DIE((set_data.cases),\
-			(set_data.case_capacity *= \
+	if (this->case_count_total >= this->case_capacity) {\
+		REALLOCATE_OR_DIE(this->cases,\
+			(this->case_capacity *= \
 			 TEST_DEFAULT_RESIZE_FACTOR )) ;	\
-		REALLOCATE_OR_DIE(set_data.case_names,	\
-				set_data.case_capacity) }
+		REALLOCATE_OR_DIE(this->case_names,	\
+				this->case_capacity) }
+// FIXME not enough this
 		
  /*
   * Identifier:
@@ -440,7 +455,7 @@
   *  	       +set
   */ 
 #define TEST_CASE(name,...) TEST_CHECK_SPACE() ;\
-	set_data.cases[set_data.case_count_total++] = \
+	this->cases[this->case_count_total++] = \
 		LAMBDA(int,(size_t case_id) {	\
 			char case_name[] = TO_STRING(test_##name) ;\
 			REALLOCATE_OR_DIE(this->case_names[case_id],sizeof(case_name)) ; \
@@ -458,17 +473,8 @@
 
  /* TODO: docs */
 #define TEST_SET_CONSTRUCTOR(name)					       \
-	struct set_data {						       \
-		int (**cases)(size_t case_id) ;/* 8 bytes */                   \
-		char ** case_names ;					       \
-		size_t case_capacity ;					       \
-		size_t case_count_total ;   /* size_t could be 4 or 8 bytes */ \
-		size_t case_count_passed ;				       \
-		char * set_name ;/* size is constexpr */\
-		size_t set_name_size ;\
-	} set_data = { NULL, NULL, 0,0,0, NULL, sizeof(TO_STRING(name)) } ;                  \
-\
-	struct set_data * this = &set_data ;	/* T H I S P O I N T E R */		    \
+	set_data_t set_data = {NULL,NULL,NULL,0,0,0,sizeof(TO_STRING(name))} ;\
+	set_data_t * this = &set_data ;	/* T H I S P O I N T E R */		    \
 	REALLOCATE_OR_DIE(this->cases,				       \
 		(this->case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
 	REALLOCATE_OR_DIE(this->case_names,				       \
@@ -538,8 +544,7 @@
   *	       +is handled by the preprocessor
   *
   * Requirements:
-  * 		Any prerequisites to the processing of this macro, if any.
-  * 		This section may be excluded if it would otherwise be empty
+  *		TEST_MAIN() is present exactly once in the source
   */ 
 #define TEST_SET(name,...)\
 	void test_set_##name (void) __attribute__((constructor)) ;             \

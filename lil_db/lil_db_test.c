@@ -29,13 +29,13 @@ TEST_SET(demo1,
 
 TEST_SET(demo2,
 	TEST_CASE(new_fail_if_true,
-		TEST_FAIL_IF_TRUE(0) ;
+		TEST_CASE_FAIL_IF_TRUE(0) ;
 	) ;
 	TEST_CASE(will_fail_silently,TEST_CASE_FAIL("")) ;
 
-	TEST_CASE(passes,TEST_PASS_IF_TRUE(1)) ;
+	TEST_CASE(passes,TEST_CASE_PASS_IF_TRUE(1)) ;
 
-	TEST_CASE(new_pass_if_false,TEST_PASS_IF_FALSE(0)) ;
+	TEST_CASE(new_pass_if_false,TEST_CASE_PASS_IF_FALSE(0)) ;
 )
 
 // Everything in test_set scope is done before anything in a test_case scope
@@ -53,7 +53,7 @@ TEST_SET(demo3,
 
 	TEST_CASE(file_removed,
 
-		TEST_PASS_IF_FALSE(remove("DUMMY")) ;
+		TEST_CASE_PASS_IF_FALSE(remove("DUMMY")) ;
 	) ;
 
 	TEST_CASE(aaa) ;

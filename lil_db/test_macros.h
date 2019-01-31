@@ -216,7 +216,7 @@
 
 
 
-typedef struct set_data {					       
+typedef struct test_set_data {
 	/* Test cases in the set. Takes case_id as a parameter in order
 	 *+to index the case_names array via a ptr to this struct   */ 
 	int (** cases)(size_t case_id) ;    			       
@@ -238,7 +238,7 @@ typedef struct set_data {
 								       
 	/* The number of bytes in the set_name string, including \0 */ 
 		set_name_size ; 				      
-} set_data_t ;
+} test_set_data_t ;
 
  /*
   * Identifier:
@@ -326,7 +326,7 @@ typedef struct set_data {
 
  /*
   * Identifier:
-  *		TEST_FAIL_IF_FALSE(predicate)
+  *		TEST_CASE_FAIL_IF_FALSE(predicate)
   *
   * Purpose:
   * 		Fail a test case if a predicate is false
@@ -341,13 +341,13 @@ typedef struct set_data {
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_FAIL_IF_FALSE(predicate) 				              \
+#define TEST_CASE_FAIL_IF_FALSE(predicate) 				              \
 	if(!(predicate))						      \
 	{ TEST_CASE_FAIL("FALSE: \"" TO_STRING(predicate) "\"") ; }
 
  /*
   * Identifier:
-  *		TEST_FAIL_IF_TRUE(predicate)
+  *		TEST_CASE_FAIL_IF_TRUE(predicate)
   *
   * Purpose:
   * 		Fail a test case if a predicate is true
@@ -362,13 +362,13 @@ typedef struct set_data {
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_FAIL_IF_TRUE(predicate)				               \
+#define TEST_CASE_FAIL_IF_TRUE(predicate)				               \
 	if((predicate))						               \
 	{ TEST_CASE_FAIL("TRUE: \"" TO_STRING(predicate) "\"") }
 
  /*
   * Identifier:
-  * 		TEST_PASS_IF_FALSE(predicate)
+  * 		TEST_CASE_PASS_IF_FALSE(predicate)
   *
   * Purpose:
   * 		Pass a test case if a predicate is false
@@ -383,11 +383,11 @@ typedef struct set_data {
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_PASS_IF_FALSE(predicate) if(!(predicate)) TEST_CASE_PASS()
+#define TEST_CASE_PASS_IF_FALSE(predicate) if(!(predicate)) TEST_CASE_PASS() ;
 
  /*
   * Identifier:
-  *		TEST_PASS_IF_TRUE(predicate)
+  *		TEST_CASE_PASS_IF_TRUE(predicate)
   *
   * Purpose:
   * 		Pass a test case if a predicate is false
@@ -402,11 +402,14 @@ typedef struct set_data {
   * Requirements:
   * 		Must be run within the scope of a test case
   */			
-#define TEST_PASS_IF_TRUE(predicate) if(predicate) TEST_CASE_PASS()
+#define TEST_CASE_PASS_IF_TRUE(predicate) if(predicate) TEST_CASE_PASS() ;
 
-// ASSERT is an alias for TEST_FAIL_IF FALSE (for now)
-#define ASSERT(predicate) TEST_FAIL_IF_FALSE(predicate)
+// ASSERT is an alias for TEST_CASE_FAIL_IF FALSE (for now)
+#define ASSERT(predicate) TEST_CASE_FAIL_IF_FALSE(predicate)
 
+#define ASSERT_FALSE(predicate) TEST_CASE_FAIL_IF_FALSE(predicate)
+
+#define ASSERT_TRUE(predicate) TEST_CASE_FAIL_IF_TRUE(predicate)
 
 /* SECTION: TEST CASE GENERATION */
 
@@ -422,7 +425,7 @@ typedef struct set_data {
   *
   * Resolution:
   *  	        A conditional statement that tests if the dynamically allocated
-  *  	       +memory in the current test set's set_data struct is filled. In
+  *  	       +memory in the current test set's test_set_data struct is filled. In
   *  	       +the case of a true result, additional memory is allocated. If
   *  	       +the allocation fails, the program quits with an error message.
   */ 
@@ -468,24 +471,54 @@ typedef struct set_data {
 
 /* SECTION: TEST SET GENERATION */
 
-// Typedefs: who needs 'em
-#define TEST_SET_DATA_T \
-
  /* TODO: docs */
 #define TEST_SET_CONSTRUCTOR(name)					       \
-	set_data_t * this = NULL ; /* T H I S P O I N T E R */ \
-	REALLOCATE_OR_DIE(this,1) ;\
-	*this = (set_data_t){NULL,NULL,NULL,0,0,0,sizeof(TO_STRING(name))} ;\
-	REALLOCATE_OR_DIE(this->cases,				       \
-		(this->case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
-	REALLOCATE_OR_DIE(this->case_names,				       \
-		this->case_capacity ) ;				       \
-	REALLOCATE_OR_DIE(this->set_name,\
-		this->set_name_size ) ; \
-	strncpy(this->set_name,TO_STRING(name),this->set_name_size) ; \
-	memset(this->case_names,0,this->case_capacity) ;		       \
-// TODO: should this whole macro be broken down a bit more?
-// FIXME: Of course it will
+									       \
+	/* ALLOCATION OF TEST SET DATA STRUCTURE */			       \
+	test_set_data_t * this = NULL ; /* Initialize pointer to set data   */ \
+	REALLOCATE_OR_DIE(this,1) ;	/* Allocate space for data or die   */ \
+									       \
+	/* ASIGNMENT OF SENSIBLE DEFAULT VALUES				    */ \
+	*this = (const test_set_data_t) /* Cast & assign to allocated space */ \
+	{				/* begin compound literal           */ \
+		NULL,			/* void (*cases)(size_t case_id)    */ \
+		NULL,			/* char ** case_names		    */ \
+		NULL,			/* char  * set_name		    */ \
+		0,			/* size_t case_count_capacity       */ \
+		0,			/* size_t case_count_total          */ \
+		0,			/* size_t case_count passed         */ \
+		sizeof(TO_STRING(name)) /* size_t set_name_length           */ \
+	} ;				/* end compound literal             */ \
+	/* From this point onward, this data is accessed via the this ptr   */ \
+									       \
+	/* DYNAMIC ALLOCATION OF TEST CASE SPACE */	       		       \
+	this->case_capacity = 		/* Initally the capacity should be  */ \
+		TEST_DEFAULT_CASE_BUFFSIZE ; /*+the default value           */ \
+									       \
+	REALLOCATE_OR_DIE(		/* Allocation failure is fatal here */ \
+		this->cases,		/* Allocate memory for this ptr     */ \
+		this->case_capacity ) ; /* To hold this many of it's type   */ \
+									       \
+	REALLOCATE_OR_DIE(		/* Same as previous 		    */ \
+		this->case_names,       /* But for test name strings        */ \
+		this->case_capacity ) ; /* Which should have same capacity  */ \
+									       \
+	memset(  /* Powerwash our array of (char*)s to clear garbage values */ \
+		this->case_names,       /* Located at this address          */ \
+		0,			/* (int)0 == NULL essentially       */ \
+		this->case_capacity     /* Hold this many nothings          */ \
+	) ; /* Note: without this call to memset(), realloc() makes a       */ \
+	    /* a conditional jump that depends on an uninitialized value    */ \
+									       \
+	/* DYNAMIC ALLOCATION OF TEST SET NAME			            */ \
+	REALLOCATE_OR_DIE(		/* Last but not least...	    */ \
+		this->set_name,         /* Space for the set name string    */ \
+		this->set_name_size ) ; /* Size in bytes determined above   */ \
+									       \
+	strcpy(  /* Safe: buffer space and \0-termination guarenteed above  */ \
+		this->set_name, 	/* dest: the newly allocated buffer */ \
+		TO_STRING(name) ) ;     /* src : const char[] from cpp      */ \
+/* end #define TEST_SET_CONSTRUCTOR 				            */
 
 #define TEST_SET_EXECUTOR()	\
 	for (size_t i = 0; i < this->case_count_total; ++i) {\

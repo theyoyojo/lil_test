@@ -524,9 +524,7 @@ typedef struct set_data {
 	{ free(this->case_names[i]) ; }\
 	free(this->case_names) ;\
 	free(this->set_name) ;\
-	free(this) ; //S O O N FIXME TODO FIXME TODO ETC don't forget this later
-		
-
+	free(this) ; 
 
  /* TODO: fill this out
   * Identifier:

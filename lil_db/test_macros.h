@@ -464,16 +464,21 @@
 		size_t case_capacity ;					       \
 		size_t case_count_total ;   /* size_t could be 4 or 8 bytes */ \
 		size_t case_count_passed ;				       \
-		char set_name[sizeof(TO_STRING(name))] ;/* size is constexpr */\
-	} set_data = { NULL, NULL, 0,0,0, TO_STRING(name) } ;                  \
-	REALLOCATE_OR_DIE((set_data.cases),				       \
-		(set_data.case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
-	REALLOCATE_OR_DIE(set_data.case_names,				       \
-		set_data.case_capacity ) ;				       \
-	memset(set_data.case_names,0,set_data.case_capacity) ;		       \
-	struct set_data * this = &set_data ;	/* Hell yeah */		       \
-	this = this; /* shhh gcc */
+		char * set_name ;/* size is constexpr */\
+		size_t set_name_size ;\
+	} set_data = { NULL, NULL, 0,0,0, NULL, sizeof(TO_STRING(name)) } ;                  \
+\
+	struct set_data * this = &set_data ;	/* T H I S P O I N T E R */		    \
+	REALLOCATE_OR_DIE(this->cases,				       \
+		(this->case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
+	REALLOCATE_OR_DIE(this->case_names,				       \
+		this->case_capacity ) ;				       \
+	REALLOCATE_OR_DIE(this->set_name,\
+		this->set_name_size ) ; \
+	strncpy(this->set_name,TO_STRING(name),this->set_name_size) ; \
+	memset(this->case_names,0,this->case_capacity) ;		       \
 // TODO: should this whole macro be broken down a bit more?
+// FIXME: Of course it will
 
 #define TEST_SET_EXECUTOR()	\
 	for (size_t i = 0; i < this->case_count_total; ++i) {\
@@ -511,6 +516,8 @@
 	for(size_t i = 0; i < this->case_count_total; ++i)\
 	{ free(this->case_names[i]) ; }\
 	free(this->case_names) ;\
+	free(this->set_name) ;
+	//free(this) S O O N FIXME TODO FIXME TODO ETC don't forget this later
 		
 
 

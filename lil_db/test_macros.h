@@ -433,7 +433,7 @@ typedef struct set_data {
 			 TEST_DEFAULT_RESIZE_FACTOR )) ;	\
 		REALLOCATE_OR_DIE(this->case_names,	\
 				this->case_capacity) }
-// FIXME not enough this
+// FIXME: formatting
 		
  /*
   * Identifier:
@@ -473,8 +473,9 @@ typedef struct set_data {
 
  /* TODO: docs */
 #define TEST_SET_CONSTRUCTOR(name)					       \
-	set_data_t set_data = {NULL,NULL,NULL,0,0,0,sizeof(TO_STRING(name))} ;\
-	set_data_t * this = &set_data ;	/* T H I S P O I N T E R */		    \
+	set_data_t * this = NULL ; /* T H I S P O I N T E R */ \
+	REALLOCATE_OR_DIE(this,1) ;\
+	*this = (set_data_t){NULL,NULL,NULL,0,0,0,sizeof(TO_STRING(name))} ;\
 	REALLOCATE_OR_DIE(this->cases,				       \
 		(this->case_capacity = TEST_DEFAULT_CASE_BUFFSIZE ) ) ;     \
 	REALLOCATE_OR_DIE(this->case_names,				       \
@@ -522,8 +523,8 @@ typedef struct set_data {
 	for(size_t i = 0; i < this->case_count_total; ++i)\
 	{ free(this->case_names[i]) ; }\
 	free(this->case_names) ;\
-	free(this->set_name) ;
-	//free(this) S O O N FIXME TODO FIXME TODO ETC don't forget this later
+	free(this->set_name) ;\
+	free(this) ; //S O O N FIXME TODO FIXME TODO ETC don't forget this later
 		
 
 

@@ -1,3 +1,9 @@
+# Binary output of makefile
 test_driver
+
+# All objects
 obj/
 
+# All dotfiles (except the git stuff)
+.*
+!/.gitignore

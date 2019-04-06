@@ -235,7 +235,7 @@
   *  	       +one would benefit from having free memory on their machine
   *  	       +as well if they don't like memory allocation errors.
   */
-#define REALLOCATE_OR_DIE(non_void_ptr,count)\
+#define REALLOCATE_OR_DIE(non_void_ptr,count)				       \
 									       \
 	LAMBDA(void,(void) {		      /* We begin our simple lambda */ \
 		void * temp = NULL;	      /* Initialize a temp void ptr */ \

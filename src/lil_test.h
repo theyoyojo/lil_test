@@ -500,6 +500,7 @@
 			char case_name[] =	/* Generate our case_name   */ \
 				TO_STRING(test_##name) ; /* Using the cpp   */ \
 									       \
+			this->case_names[case_id] = NULL ;		       \
 			REALLOCATE_OR_DIE(      /* Guarentee reallocation   */ \
 				this->case_names[case_id], /* For case_name */ \
 				sizeof(case_name)  	   /* Of this size  */ \

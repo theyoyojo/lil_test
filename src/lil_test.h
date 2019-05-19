@@ -494,7 +494,7 @@
 #define TEST_CASE(name,...)						       \
 									       \
 	TEST_CHECK_SPACE() ;	/* Guarentee sufficent space for new tests  */ \
-	this->cases[this->case_count_total++] = /* Add a new tes case	    */ \
+	this->cases[this->case_count_total++] = /* Add a new test case	    */ \
 		LAMBDA(int,(size_t case_id) 	/* Defined using our lambda */ \
 		{							       \
 			char case_name[] =	/* Generate our case_name   */ \

@@ -95,7 +95,9 @@
 
 /* Output display options */
 #define TEST_OPTION_VERBOSE 		 /* Show all passes */
-#undef TEST_OPTION_SUPPRESS_FAILURE	 /* Show all fails  */
+
+// FIXME: what should the default cpp state be for this option?
+//#define TEST_OPTION_TAP
 
 /* Specification of documentation information */
 
@@ -270,37 +272,128 @@
   */
 #define TEST_MAIN() int main(void) { return 0 ; }
 
+ /*
+  * Identifier:
+  * 		TEST_PRINTF()
+  *
+  * Purpose:
+  * 		printf appropriate output for test consumers
+  *
+  * Resolution:
+  * 		Just printf but the output format is modified if necessary
+  *
+  * Requirements:
+  * 		No newlines in the middle if you are using TAP unless you
+  * 	       +manually add the '#'s
+  */
+#ifdef TEST_OPTION_TAP
+#define TEST_PRINTF(spec, ...) printf( "# " spec ,##__VA_ARGS__) ;
+#else
+#define TEST_PRINTF(spec, ...) printf(spec ,##__VA_ARGS__) ;
+#endif /* #ifdef TEST_OPTION_TAP */
+
 /* SECTION: ASSERTIONS */
 
 #define TEST_RETURN_FAIL 0 		/* Returned by failing test case    */
 #define TEST_RETURN_PASS 1		/* Returned by passing test case    */
+
+
+ /*
+  * Identifier:
+  * 		TEST_CASE_REPORT_PASS()
+  *
+  * Purpose:
+  *		Report appropriate information to the user when a test case
+  *	       +passes
+  *
+  * Resolution:
+  * 		ifndef OPTION_TAP, print informational message if
+  * 	       +OPTION_VERBOSE is defined, else produce
+  *
+  * Requirements:
+  * 		Must be run in the context of a passing test case
+  */
+#ifdef TEST_OPTION_TAP
+#define TEST_CASE_REPORT_PASS()						       \
+	fprintf(stdout,							       \
+		"ok %zd - %s\n",					       \
+		case_id + 1,						       \
+		this->case_names[case_id]) ; /* case name used as directive */ \
+									       \
+// TODO print diagnostic messages as well
+/* end #define TEST_CASE_REPORT_PASS */
+#else
+#define TEST_CASE_REPORT_PASS()						       \
+	fprintf(stdout,		        /* Begin an informational message   */ \
+		"PASS %s\n\n",	        /* Good news			    */ \
+		this->case_names[case_id]) ;   	     /* Print case name     */ \
+									       \
+/* end #define TEST_CASE_REPORT_PASS */
+#endif /* #ifdef TEST_OPTION_TAP */
 
  /*
   * Identifier:
   * 		TEST_CASE_PASS()
   *
   * Purpose:
-  *		Pass a test case. Report to user if the option is set.
+  *		Pass a test case. Report to user unless asked not to
   *
   * Resolution:
   *	        Print a message to the standard output stream if the
-  *	        VERBOSE option is set. Return the PASS code.
+  *	       +VERBOSE option is set. Return the PASS code and exit
+  *	       +test case context.
   *
   * Requirements:
   * 		Must be run within the scope of a test case.
   */
-#ifdef TEST_OPTION_VERBOSE
+#if defined(TEST_OPTION_VERBOSE) || defined(TEST_OPTION_TAP)
+/* TEST_CASE_PASS cannot be silent if either macro is defined */
 #define TEST_CASE_PASS()						       \
-									       \
-	fprintf(stdout,		        /* Begin an informational message   */ \
-		"PASS %s\n\n",	        /* Good news			    */ \
-		this->case_names[case_id]) ;   	     /* Print case name     */ \
+	TEST_CASE_REPORT_PASS()	;	/* Report success appropriately     */ \
 	return TEST_RETURN_PASS  ; 	/* The test case has now passed	    */ \
 									       \
 /* end #define TEST_CASE_PASS						    */
 #else
 #define TEST_CASE_PASS() return TEST_RETURN_PASS ; /* Test passed           */
-#endif /* ifdef TEST_OPTION_VERBOSE */
+#endif /* #if defined(TEST_OPTION_VERBOSE) || defined(TEST_OPTION_TAP) */
+
+ /*
+  * Identifier:
+  * 		TEST_CASE_REPORT_FAIL(why_string)
+  *
+  * Purpose:
+  *		Report appropriate test failure information to user.
+  *		
+  * Inputs:
+  *          why_string : an optional message to display to the standard output
+  *         		 +stream
+  *
+  * Resolution:
+  * 		Print a message to the user about the failing test
+  *
+  * Requirements:
+  * 		Must be run within the scope of a failing test case
+  */
+#ifdef TEST_OPTION_TAP
+#define TEST_CASE_REPORT_FAIL(why_string)				       \
+	fprintf(stdout,							       \
+		"not ok %zd - %s\n" 					       \
+		"# %s\n",						       \
+		case_id,						       \
+		this->case_names[case_id],   /* case name used as directive */ \
+		why_string) ;						       \
+									       \
+/* end #define TEST_CASE_REPORT_FAIL */
+#else
+#define TEST_CASE_REPORT_FAIL(why_string)				       \
+	fprintf(stdout,		        /* Begin an informational message   */ \
+		"FAIL %s:\n"            /* Bad news                         */ \
+		"\t%s\n",               /* Indented why_string              */ \
+		this->case_names[case_id],    /* Print case name            */ \
+		why_string) ;  	        /* Print failure defailt            */ \
+									       \
+/* end #define TEST_CASE_REPORT_FAIL */
+#endif /* #ifdef TEST_OPTION_TAP */
 
  /*
   * Identifier:
@@ -314,26 +407,17 @@
   *         		 +stream
   *
   * Resolution:
-  * 		Print a message to the user unless the SUPPRESS_FAILURE option
-  * 	       +is set.
+  * 		Print a message to the user about the failing test and exit
+  * 	       +from current test case context
   *
   * Requirements:
   * 		Must be run within the scope of a test case.
   */
-#ifndef TEST_OPTION_SUPPRESS_FAILURE
 #define TEST_CASE_FAIL(why_string)					       \
-									       \
-	fprintf(stdout,		        /* Begin an informational message   */ \
-		"FAIL %s:\n"            /* Bad news                         */ \
-		"\t%s\n",               /* Indented why_string              */ \
-		this->case_names[case_id],    /* Print case name            */ \
-		why_string) ;  	        /* Print failure defailt            */ \
+	TEST_CASE_REPORT_FAIL(why_string) ;				       \
 	return TEST_RETURN_FAIL ; 	/* The test case has now failed     */ \
 									       \
 /* end #define TEST_CASE_FAIL						    */
-#else
-#define TEST_CASE_FAIL(why_string) return TEST_RETURN_FAIL ; /* Test failed */
-#endif /* ifndef TEST_OPTION_SUPPRESS_FAILURE */
 
  /*
   * Identifier:
@@ -595,6 +679,66 @@
 
  /*
   * Identifier:
+  * 		TEST_SET_REPORT_RESULTS()
+  *
+  * Purpose:
+  *		Report information about the test set to be executed
+  *
+  * Resolution:
+  * 		A short header is printed. For TAP, this is the "plan" line
+  *
+  * Requirements:
+  * 		Must be called in the context of a TEST_SET before any
+  * 	       +other mechanisms that print to the output stream.
+  */
+#ifdef TEST_OPTION_TAP
+#define TEST_SET_REPORT_PLAN()						       \
+	fprintf(stdout,							       \
+		"1..%zd\n",			  			       \
+			this->case_count_total) ;			       \
+									       \
+/* end #define TEST_SET_REPORT_PLAN */
+#else
+#define TEST_SET_REPORT_PLAN()						       \
+	fprintf(stdout,							       \
+		"\nBEGIN TEST_SET: %s (%zd cases)\n",  			       \
+			this->set_name,					       \
+			this->case_count_total) ;			       \
+									       \
+/* end #define TEST_SET_REPORT_PLAN */
+#endif /* #ifdef TEST_OPTION_TAP */
+
+ /*
+  * Identifier:
+  * 		TEST_SET_REPORT_RESULTS()
+  *
+  * Purpose:
+  *		Report the results of a test set to stdout
+  *
+  * Resolution:
+  * 		Information about the results of the test set is printed
+  * 	       +unless OPTION_TAP is defined.
+  *
+  * Requirements:
+  * 		Must be called in the context of a TEST_SET and after all
+  * 	       +have finished executing.
+  */
+#ifdef TEST_OPTION_TAP
+#define TEST_SET_REPORT_RESULTS()					       \
+	(void)0 ; /* TAP output will be summarized by the consumer */
+#else									       
+#define TEST_SET_REPORT_RESULTS()					       \
+	fprintf(stdout,	/* When all test cases in the set have been run,    */ \
+		"\nFINISHED TEST_SET: %s\n"   /* Report which set was run,  */ \
+		"\tPassed %lu/%lu test cases.\n\n", /* and the pass ratio   */ \
+			this->set_name,				               \
+			this->case_count_passed,			       \
+			this->case_count_total ) ;  			       \
+/* end #define TEST_SET_REPORT_RESULTS					    */
+#endif /* #ifdef TEST_OPTION_TAP */
+
+ /*
+  * Identifier:
   * 		TEST_SET_EXECUTOR()
   *
   * Purpose:
@@ -608,6 +752,8 @@
   *  		TEST_SET_CONSTRUCTOR must be called earlier in scope.
   */
 #define TEST_SET_EXECUTOR()						       \
+	/* REPORT PLAN */						       \
+	TEST_SET_REPORT_PLAN() ;					       \
 									       \
 	/* EXECUTION */							       \
 	for (size_t i = 0;				/* Iterate through  */ \
@@ -616,13 +762,8 @@
 			this->cases[i](i) ;	/* By executing test cases  */ \
 	}		/* A test case return 1 for pass and 0 for failure  */ \
 									       \
-	/* REPORT */							       \
-	fprintf(stdout,	/* When all test cases in the set have been run,    */ \
-		"\nFINISHED TEST_SET: %s\n"   /* Report which set was run,  */ \
-		"\tPassed %lu/%lu test cases.\n\n", /* and the pass ratio   */ \
-			this->set_name,				               \
-			this->case_count_passed,			       \
-			this->case_count_total ) ;  			       \
+	/* REPORT RESULTS */						       \
+	TEST_SET_REPORT_RESULTS() ; 					       \
 									       \
 /* end #define TEST_SET_EXECUTOR 				            */
 

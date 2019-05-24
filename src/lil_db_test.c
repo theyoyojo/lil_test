@@ -77,10 +77,10 @@ TEST_SET(demo3,
 	TEST_CASE(aaa) ;
 	TEST_CASE(bbb,) ;
 	TEST_CASE(ccc,
-		printf("test CCC-1\n") ;	
+		TEST_PRINTF("test CCC-1\n") ;	
 	) ;
 	TEST_CASE(ccc,
-		printf("test CCC-2\n") ;	
+		TEST_PRINTF("test CCC-2\n") ;	
 	) ;
 ) ;
 

@@ -430,6 +430,12 @@
 
 #define ASSERT_TRUE(predicate) TEST_CASE_FAIL_IF_TRUE(predicate)
 
+/* An assertion whereby the first argument must be true or false invariantly
+ * at compile time
+ */
+#define STATIC_ASSERT(compile_time_constant_predicate, message) 	     \
+		_Static_assert(compile_time_constant_predicate, message)
+
 /* SECTION: TEST CASE GENERATION */
 
 // TODO: move to configuration
